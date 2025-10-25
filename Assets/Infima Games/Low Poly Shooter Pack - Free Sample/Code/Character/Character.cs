@@ -282,21 +282,32 @@ namespace InfimaGames.LowPolyShooterPack
 			const string boolNameRun = "Running";
 			characterAnimator.SetBool(boolNameRun, running);
 			
-			int additiveLayerIndex = characterAnimator.GetLayerIndex("Layer Locomotion"); // 레이어 이름 확인
+			int additiveLayerIndex = characterAnimator.GetLayerIndex("Layer Locomotion"); 
 			if (additiveLayerIndex >= 0)
 			{
-				// 움직이고 있으면 활성화 (걷기 or 달리기)
-				bool isMoving = axisMovement.sqrMagnitude > 0.01f;
+				// 이동 중인지 판단
+				bool isMoving = axisMovement.sqrMagnitude > 0.000000001f;
 
-				// 목표 weight: 움직이면 1, 멈추면 0
-				float targetWeight = isMoving ? 1f : 0f;
+				// 목표 weight: 움직이면 1, 안 움직이면 최소값 유지
+				float minWeight = 0; // 0으로 내려가서 캐릭터가 틀어지는 문제 방지
+				float targetWeight = isMoving ? 1f : minWeight;
 
-				// 현재 weight
+				// 현재 weight 가져오기
 				float currentWeight = characterAnimator.GetLayerWeight(additiveLayerIndex);
 
-				// 보간 적용 (부드럽게 전환)
-				characterAnimator.SetLayerWeight(additiveLayerIndex, Mathf.Lerp(currentWeight, targetWeight, Time.deltaTime * 10f));
+				// 보간 step: 너무 크지 않게 조정 (Time.deltaTime * 5~10 정도 적절)
+				float step = Time.deltaTime * 5f;
+
+				// 안정적인 보간
+				float newWeight = Mathf.MoveTowards(currentWeight, targetWeight, step);
+
+				// 적용
+				characterAnimator.SetLayerWeight(additiveLayerIndex, newWeight);
+				
+				Debug.Log(newWeight);
 			}
+
+
 
 		}
 		

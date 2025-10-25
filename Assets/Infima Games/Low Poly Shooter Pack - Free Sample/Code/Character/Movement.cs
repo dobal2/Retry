@@ -62,6 +62,20 @@ namespace InfimaGames.LowPolyShooterPack
         private WeaponBehaviour equippedWeapon;
 
         private readonly RaycastHit[] groundHits = new RaycastHit[8];
+        
+        [SerializeField] private Transform cameraTransform; // 📸 카메라 Transform 직접 연결
+
+        [SerializeField, Tooltip("카메라가 착지 직전에 얼마나 아래로 이동할지")]
+        private float landingDipAmount = 0.15f;
+
+        [SerializeField, Tooltip("카메라가 아래로 내려가고 복귀하는 속도")]
+        private float landingDipSpeed = 8.0f;
+
+        private bool isLandingDipActive = false;
+        private float dipProgress = 0f;
+        private Vector3 originalCameraLocalPos;
+
+        
         #endregion
 
         #region UNITY FUNCTIONS
@@ -99,26 +113,64 @@ namespace InfimaGames.LowPolyShooterPack
             grounded = true;
             canJump = true; // 바닥에 닿으면 점프 다시 가능
         }
+        [SerializeField] private float minImpactVelocity = 2f;
 
         protected override void FixedUpdate()
         {
             MoveCharacter();
 
-            if (jumpPressed && canJump && grounded)
-                PerformJump();
-
-            // ✅ 착지 감지
-            if (!wasGroundedLastFrame && grounded)
-            {
-                if (cameraShaker != null && shakeData != null)
-                    cameraShaker.Shake(shakeData); // 착지 시 카메라 흔들림
-            }
-            
-
-            wasGroundedLastFrame = grounded; // 다음 프레임용 저장
+            // if (jumpPressed && canJump && grounded)
+            //     PerformJump();
+            //
+            // // ✅ 착지 감지
+            // if (!wasGroundedLastFrame && grounded)
+            // {
+            //     if (cameraShaker != null && shakeData != null)
+            //         cameraShaker.Shake(shakeData); // 착지 시 카메라 흔들림
+            // }
+            //
+            //
+            // wasGroundedLastFrame = grounded; // 다음 프레임용 저장
             grounded = false;
             jumpPressed = false;
         }
+        
+        protected override void LateUpdate()
+        {
+            MoveCharacter();
+
+            // 점프 처리
+            if (jumpPressed && canJump && grounded)
+                PerformJump();
+
+            float verticalVelocity = rigidBody.linearVelocity.y;
+
+            // ✅ 착지 "직전" 감지
+            if (!grounded && verticalVelocity < -0.1f)
+            {
+                // 플레이어 중심에서 아래로 레이캐스트하여 곧 닿을지 확인
+                if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, groundCheckDistance + 0.2f, groundLayer))
+                {
+                    // 속도가 충분히 빠를 때만 착지 직전 흔들림 발생
+                    if (Mathf.Abs(verticalVelocity) >= minImpactVelocity && !wasGroundedLastFrame)
+                    {
+                        if (cameraShaker != null && shakeData != null)
+                            cameraShaker.Shake(shakeData);
+                    }
+                }
+            }
+
+            // ✅ 착지 판정 (기존)
+            if (!wasGroundedLastFrame && grounded && Mathf.Abs(verticalVelocity) >= minImpactVelocity)
+            {
+                // 너무 빠르게 흔들리는 것을 방지하기 위해 착지 시는 제외할 수도 있음
+                // cameraShaker.Shake(shakeData);
+            }
+
+            wasGroundedLastFrame = grounded;
+        }
+
+
 
 
         protected override void Update()
