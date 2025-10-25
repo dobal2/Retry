@@ -1,7 +1,5 @@
 using UnityEngine;
-#if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
-#endif
 
 namespace StarterAssets
 {
@@ -11,16 +9,21 @@ namespace StarterAssets
 		public Vector2 move;
 		public Vector2 look;
 		public bool jump;
-		public bool sprint;
+		//public bool sprint;
+		public bool aim;
+        public bool shoot;
+        public bool reload;
+        public bool dash;
 
-		[Header("Movement Settings")]
+        [Header("Movement Settings")]
 		public bool analogMovement;
 
+#if !UNITY_IOS || !UNITY_ANDROID
 		[Header("Mouse Cursor Settings")]
 		public bool cursorLocked = true;
 		public bool cursorInputForLook = true;
-
-#if ENABLE_INPUT_SYSTEM
+#endif
+		
 		public void OnMove(InputValue value)
 		{
 			MoveInput(value.Get<Vector2>());
@@ -39,14 +42,34 @@ namespace StarterAssets
 			JumpInput(value.isPressed);
 		}
 
-		public void OnSprint(InputValue value)
-		{
-			SprintInput(value.isPressed);
-		}
-#endif
+		// public void OnSprint(InputValue value)
+		// {
+		// 	SprintInput(value.isPressed);
+  //       }
+
+        public void OnAim(InputValue value) 
+        {
+            AimInput(value.isPressed);
+        }
+        
+        public void OnDash(InputValue value) 
+        {
+	        DashInput(value.isPressed);
+        }
 
 
-		public void MoveInput(Vector2 newMoveDirection)
+        public void OnShoot(InputValue value) 
+        {
+            ShootInput(value.isPressed);
+        }
+        
+        public void OnReload(InputValue value) 
+        {
+	        ReloadInput(value.isPressed);
+        }
+
+
+        public void MoveInput(Vector2 newMoveDirection)
 		{
 			move = newMoveDirection;
 		} 
@@ -61,12 +84,28 @@ namespace StarterAssets
 			jump = newJumpState;
 		}
 
-		public void SprintInput(bool newSprintState)
-		{
-			sprint = newSprintState;
-		}
+		// public void SprintInput(bool newSprintState)
+		// {
+		// 	sprint = newSprintState;
+  //       }
 
-		private void OnApplicationFocus(bool hasFocus)
+        public void AimInput(bool newAimState)
+        {
+            aim = newAimState;
+            Debug.Log(newAimState);
+        }
+
+        public void ShootInput(bool newShootState) {
+            shoot = newShootState;
+        }
+        
+        public void DashInput(bool newShootState) {
+	        dash = newShootState;
+        }
+
+#if !UNITY_IOS || !UNITY_ANDROID
+
+        private void OnApplicationFocus(bool hasFocus)
 		{
 			SetCursorState(cursorLocked);
 		}
@@ -75,6 +114,14 @@ namespace StarterAssets
 		{
 			Cursor.lockState = newState ? CursorLockMode.Locked : CursorLockMode.None;
 		}
+
+		private void ReloadInput(bool newState)
+		{
+			reload = newState;
+		}
+
+#endif
+
 	}
 	
 }

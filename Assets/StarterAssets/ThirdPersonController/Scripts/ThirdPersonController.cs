@@ -86,6 +86,7 @@ namespace StarterAssets
         private float _rotationVelocity;
         private float _verticalVelocity;
         private float _terminalVelocity = 53.0f;
+        public float Sensitivity = 1f;
 
         // timeout deltatime
         private float _jumpTimeoutDelta;
@@ -107,6 +108,7 @@ namespace StarterAssets
         private GameObject _mainCamera;
 
         private const float _threshold = 0.01f;
+        private bool _rotateOnMove = true;
 
         private bool _hasAnimator;
 
@@ -120,6 +122,16 @@ namespace StarterAssets
 				return false;
 #endif
             }
+        }
+        
+        public void SetSensitivity(float newSensitivity) 
+        {
+            Sensitivity = newSensitivity;
+        }
+
+        public void SetRotateOnMove(bool newRotateOnMove) 
+        {
+            _rotateOnMove = newRotateOnMove;
         }
 
 
@@ -214,8 +226,10 @@ namespace StarterAssets
         private void Move()
         {
             // set target speed based on move speed, sprint speed and if sprint is pressed
-            float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
-
+            //float targetSpeed = _input.sprint ? SprintSpeed : MoveSpeed;
+            
+            float targetSpeed = MoveSpeed;
+            
             // a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
 
             // note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude

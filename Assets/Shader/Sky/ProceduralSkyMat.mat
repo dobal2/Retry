@@ -1,0 +1,139 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &-2342954663660148746
+MonoBehaviour:
+  m_ObjectHideFlags: 11
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d0353a89b1f911e48b9e16bdc9f2e058, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  version: 9
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ProceduralSkyMat
+  m_Shader: {fileID: -6465566751694194690, guid: 7f998c4e2d389734b8742616e04590d7, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses:
+  - MOTIONVECTORS
+  m_LockedProperties: _HorizonColor
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - Texture2D_189A2C4C:
+        m_Texture: {fileID: 2800000, guid: f3140b0131e1640978bf1ce1be8cbdd6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - Texture2D_5D8C4B2:
+        m_Texture: {fileID: 2800000, guid: e799995dce58548d4982f7094860541e, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CloudTexture:
+        m_Texture: {fileID: 2800000, guid: 6b0d6b760dc76cc49a36ff3f6d7ee7ed, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MoonTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - Vector1_44C748BB: 0
+    - Vector1_5E285FC2: 0.05
+    - Vector1_7296D65E: 1
+    - Vector1_8309045E: 0.03
+    - Vector1_AAD098B: 40
+    - Vector1_AB063644: 1
+    - Vector1_CA1FCB44: 5
+    - Vector1_DA053A00: 120
+    - Vector1_E1FFA1ED: 1
+    - Vector1_EB026327: 1
+    - Vector1_EC7A93E4: 0.5
+    - Vector1_ECF7B58A: 1
+    - _AuroraBlend: 11
+    - _AuroraBlendAlpha: 0
+    - _AuroraDistortionSpeed: 1.28
+    - _AuroraGradientOffset: -0.22
+    - _AuroraIntensity: 3.36
+    - _AuroraNoiseScale: 525
+    - _AuroraPower: 3.69
+    - _AuroraTwirlStrength: 0.1
+    - _CloudDistanceFadePower: 1
+    - _CloudSpeed: 0.02
+    - _DayNightSlider: 1
+    - _HorizonBlend: 8.3
+    - _MoonIntensity: 0.52
+    - _MoonPhase: 0.645
+    - _MoonSize: 0.06
+    - _NadirBlend: 0.01
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    - _Rotation: -1.48
+    - _SkyExpore: 2.1
+    - _SpreadPower: 2
+    - _StarHeight: 150
+    - _StarIntensity: 223
+    - _StarPower: 50
+    - _SunIntensity: 46.5
+    - _SunRayIntensity: 0.15
+    - _SunSize: 0.05
+    - _SunSizeA: 0.03
+    - _SunSizeB: 0.05
+    - _ZenithBlend: 0.4
+    m_Colors:
+    - Color_22A48730: {r: 0.03991635, g: 0.06467158, b: 0.3679245, a: 1}
+    - Color_875AE1F7: {r: 0.009410375, g: 0.009623009, b: 0.105, a: 0}
+    - Color_C5937B1C: {r: 0.009410375, g: 0.009623009, b: 0.105, a: 0}
+    - Color_C9264062: {r: 0, g: 0.001846644, b: 0.046, a: 0}
+    - _AuroraScrollSpeed: {r: 0, g: 0.05, b: 0, a: 0}
+    - _AuroraTiling: {r: 1, g: 6, b: 0, a: 0}
+    - _AuroraTwirlOffset: {r: 0, g: 4.61, b: 0, a: 0}
+    - _CameraForward: {r: 0, g: 0, b: 1, a: 0}
+    - _CloudColor: {r: 0.9726798, g: 0.9876512, b: 1, a: 1}
+    - _CloudScale: {r: 0.08, g: 0.08, b: 0, a: 0}
+    - _DistortionMinMax: {r: 10, g: 12, b: 0, a: 0}
+    - _GroundColor: {r: 0, g: 0.79215693, b: 1, a: 0}
+    - _HorizonColor: {r: 0.68903524, g: 0.8751507, b: 0.9245283, a: 0}
+    - _MainLightDirection: {r: 0, g: -0.4305111, b: 0.90258527, a: 0}
+    - _MainLightRight: {r: 1, g: 0, b: 0, a: 0}
+    - _MainLightUp: {r: 0, g: 0.90258527, b: 0.4305111, a: 0}
+    - _MoonColor: {r: 11.093801, g: 9.479589, b: 3.328139, a: 0}
+    - _NightGroundColor: {r: 0, g: 0.01464506, b: 0.23018861, a: 0}
+    - _NightHorizonColor: {r: 0.1689254, g: 0, b: 0.5396226, a: 0}
+    - _NightSkyColor: {r: 0.06190815, g: 0.09610254, b: 0.13962266, a: 0}
+    - _SkyColor: {r: 0, g: 0.46867323, b: 1, a: 0}
+    - _SkyColor2: {r: 0.75, g: 0.3, b: 0.17, a: 1}
+    - _SkyColorNight2: {r: 0.6685029, g: 0.4840256, b: 0.38820177, a: 1}
+    - _StarsOffset: {r: 2, g: 0, b: 0, a: 0}
+    - _SunColor: {r: 1, g: 0.72916406, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
