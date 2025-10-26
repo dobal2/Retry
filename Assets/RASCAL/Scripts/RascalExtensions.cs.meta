@@ -1,0 +1,19 @@
+fileFormatVersion: 2
+guid: d5e7a19df6df18a4abbc939baf6654d0
+timeCreated: 1543441158
+licenseType: Store
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/Scripts/RascalExtensions.cs
+  uploadId: 794954

@@ -17,27 +17,48 @@ public class HS_ProjectileMover : MonoBehaviour
     [SerializeField] protected GameObject[] Detached;
     [SerializeField] protected ParticleSystem projectilePS;
     private bool startChecker = false;
-    [SerializeField]protected bool notDestroy = false;
+    [SerializeField] protected bool notDestroy = false;
+
+    // 호밍 관련 변수
+    [Header("Homing Settings")]
+    [SerializeField] protected bool isHoming = false;
+    [SerializeField] protected float homingDelay = 0.5f; // 호밍 시작 딜레이
+    [SerializeField] protected float homingRange = 20f;
+    [SerializeField] protected float rotationSpeed = 5f;
+    [SerializeField] protected string targetTag = "Enemy";
+    
+    protected Transform target;
+    protected bool homingActive = false; // 실제 호밍 활성화 여부
 
     protected virtual void Start()
     {
         if (!startChecker)
         {
-            /*lightSourse = GetComponent<Light>();
-            rb = GetComponent<Rigidbody>();
-            col = GetComponent<Collider>();
-            if (hit != null)
-                hitPS = hit.GetComponent<ParticleSystem>();*/
             if (flash != null)
             {
                 flash.transform.parent = null;
             }
         }
+        
+        // 호밍 딜레이 시작
+        if (isHoming)
+        {
+            StartCoroutine(ActivateHomingAfterDelay());
+        }
+        
         if (notDestroy)
             StartCoroutine(DisableTimer(5));
         else
             Destroy(gameObject, 5);
         startChecker = true;
+    }
+
+    // 딜레이 후 호밍 활성화
+    protected virtual IEnumerator ActivateHomingAfterDelay()
+    {
+        homingActive = false;
+        yield return new WaitForSeconds(homingDelay);
+        homingActive = true;
     }
 
     protected virtual IEnumerator DisableTimer(float time)
@@ -60,28 +81,77 @@ public class HS_ProjectileMover : MonoBehaviour
                 lightSourse.enabled = true;
             col.enabled = true;
             rb.constraints = RigidbodyConstraints.None;
+            
+            // 호밍 초기화
+            if (isHoming)
+            {
+                target = null;
+                homingActive = false;
+                StartCoroutine(ActivateHomingAfterDelay());
+            }
         }
     }
 
     protected virtual void FixedUpdate()
     {
+        // 호밍이 활성화되고 딜레이가 지났을 때만 추적
+        if (isHoming && homingActive)
+        {
+            FindAndTrackTarget();
+        }
+        
         if (speed != 0)
         {
             rb.linearVelocity = transform.forward * speed;      
         }
     }
 
-    //https ://docs.unity3d.com/ScriptReference/Rigidbody.OnCollisionEnter.html
+    // 타겟 찾기 및 추적
+    protected virtual void FindAndTrackTarget()
+    {
+        // 타겟이 없거나 범위 밖이면 새로운 타겟 찾기
+        if (target == null || Vector3.Distance(transform.position, target.position) > homingRange)
+        {
+            target = FindClosestTarget();
+        }
+
+        // 타겟이 있으면 추적
+        if (target != null)
+        {
+            Vector3 direction = (target.position - transform.position).normalized;
+            Quaternion lookRotation = Quaternion.LookRotation(direction);
+            transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, rotationSpeed * Time.fixedDeltaTime);
+        }
+    }
+
+    // 가장 가까운 타겟 찾기
+    protected virtual Transform FindClosestTarget()
+    {
+        GameObject[] enemies = GameObject.FindGameObjectsWithTag(targetTag);
+        Transform closestEnemy = null;
+        float closestDistance = homingRange;
+
+        foreach (GameObject enemy in enemies)
+        {
+            float distance = Vector3.Distance(transform.position, enemy.transform.position);
+            if (distance < closestDistance)
+            {
+                closestDistance = distance;
+                closestEnemy = enemy.transform;
+            }
+        }
+
+        return closestEnemy;
+    }
+
     protected virtual void OnCollisionEnter(Collision collision)
     {
-        if (collision.gameObject.CompareTag("Player"))
+        if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("Projectile"))
         {
             return;
         }
         
-        //Lock all axes movement and rotation
         rb.constraints = RigidbodyConstraints.FreezeAll;
-        //speed = 0;
         if (lightSourse != null)
             lightSourse.enabled = false;
         col.enabled = false;
@@ -95,7 +165,6 @@ public class HS_ProjectileMover : MonoBehaviour
         Quaternion rot = Quaternion.FromToRotation(Vector3.up, contact.normal);
         Vector3 pos = contact.point + contact.normal * hitOffset;
 
-        //Spawn hit effect on collision
         if (hit != null)
         {
             hit.transform.rotation = rot;
@@ -106,7 +175,6 @@ public class HS_ProjectileMover : MonoBehaviour
             hitPS.Play();
         }
 
-        //Removing trail from the projectile on cillision enter or smooth removing. Detached elements must have "AutoDestroying script"
         foreach (var detachedPrefab in Detached)
         {
             if (detachedPrefab != null)

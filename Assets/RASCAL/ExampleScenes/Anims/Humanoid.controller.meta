@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e6cd54a61f74f4447af5bf21fad7bba5
+timeCreated: 1543848715
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Anims/Humanoid.controller
+  uploadId: 794954

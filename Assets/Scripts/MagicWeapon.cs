@@ -15,7 +15,7 @@ namespace InfimaGames.LowPolyShooterPack
 
         [Tooltip("Is this weapon automatic? If yes, then holding down the firing button will continuously fire.")]
         [SerializeField] 
-        private bool automatic;
+        private bool automatic = true;  // 👈 기본값을 true로 설정! 꾹 누르면 연속 발사됩니다!
         
         [Tooltip("How fast the projectiles are.")]
         [SerializeField]

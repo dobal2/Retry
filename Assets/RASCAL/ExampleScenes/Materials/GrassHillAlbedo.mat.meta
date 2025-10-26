@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 83465449d22c1aa4788044406605a112
+timeCreated: 1543441678
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Materials/GrassHillAlbedo.mat
+  uploadId: 794954

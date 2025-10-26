@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: a55c9b9aa2030a24f844d15d96483179
+timeCreated: 1543467753
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Prefabs/throwBall.prefab
+  uploadId: 794954

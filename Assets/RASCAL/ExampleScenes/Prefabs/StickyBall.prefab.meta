@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: bc81f9bb3c3534d49b9a90b399735738
+timeCreated: 1543467753
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Prefabs/StickyBall.prefab
+  uploadId: 794954

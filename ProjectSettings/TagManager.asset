@@ -18,6 +18,7 @@ TagManager:
   - Wood
   - Enemy
   - CinemachineTarget
+  - Projectile
   layers:
   - Default
   - TransparentFX

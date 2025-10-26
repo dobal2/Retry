@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: ee98bc6b88f853c4ea15cd6ca8b7c256
+timeCreated: 1543467753
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Prefabs/SmolBall.prefab
+  uploadId: 794954

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 6063bbec10ae23b449c34c19d4cdd41c
+timeCreated: 1543467753
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Prefabs/throwBall sticky.prefab
+  uploadId: 794954

@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 003e3f55bb6143a4799c638610f24182
+timeCreated: 1543838822
+licenseType: Store
+NativeFormatImporter:
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 134833
+  packageName: RASCAL Skinned Mesh Collider
+  packageVersion: 1.4
+  assetPath: Assets/RASCAL/ExampleScenes/Materials/particle.mat
+  uploadId: 794954

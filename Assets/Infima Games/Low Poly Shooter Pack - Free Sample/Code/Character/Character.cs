@@ -287,15 +287,33 @@ namespace InfimaGames.LowPolyShooterPack
 			{
 				// 이동 중인지 판단
 				bool isMoving = axisMovement.sqrMagnitude > 0.000000001f;
-
-				// 목표 weight: 움직이면 1, 안 움직이면 최소값 유지
-				float minWeight = 0; // 0으로 내려가서 캐릭터가 틀어지는 문제 방지
-				float targetWeight = isMoving ? 1f : minWeight;
+    
+				// 달리는지 확인
+				bool isRunning = running; // 또는 playerCharacter.IsRunning()
+    
+				// 목표 weight 결정
+				float targetWeight = 0f;
+    
+				if (!isMoving)
+				{
+					// 멈춰있을 때: 0
+					targetWeight = 0f;
+				}
+				else if (isRunning)
+				{
+					// 달릴 때: 1
+					targetWeight = 1f;
+				}
+				else
+				{
+					// 걸을 때: 0.5
+					targetWeight = 0.5f;
+				}
 
 				// 현재 weight 가져오기
 				float currentWeight = characterAnimator.GetLayerWeight(additiveLayerIndex);
 
-				// 보간 step: 너무 크지 않게 조정 (Time.deltaTime * 5~10 정도 적절)
+				// 보간 step
 				float step = Time.deltaTime * 5f;
 
 				// 안정적인 보간
@@ -303,8 +321,8 @@ namespace InfimaGames.LowPolyShooterPack
 
 				// 적용
 				characterAnimator.SetLayerWeight(additiveLayerIndex, newWeight);
-				
-				Debug.Log(newWeight);
+    
+				Debug.Log($"Weight: {newWeight}, Moving: {isMoving}, Running: {isRunning}");
 			}
 
 
