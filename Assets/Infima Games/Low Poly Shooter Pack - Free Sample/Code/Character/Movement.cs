@@ -57,8 +57,8 @@ namespace InfimaGames.LowPolyShooterPack
         private float landingSpeedMultiplier = 0.3f;
         [SerializeField, Tooltip("속도가 회복되는 시간 (초)")]
         private float landingRecoveryTime = 0.5f;
-        [SerializeField, Tooltip("착지 판정 최소 낙하 속도")]
-        private float minFallSpeedForLanding = -2f;
+        [SerializeField, Tooltip("착지 판정 최소 낙하 속도 (양수로 입력, 예: 5)")]
+        private float minFallSpeedForLanding = 5f;
 
         [Header("Landing Camera Effect")]
         [SerializeField, Tooltip("카메라 Transform (Main Camera)")]
@@ -69,6 +69,10 @@ namespace InfimaGames.LowPolyShooterPack
         private float landingDipDuration = 0.3f;
         [SerializeField, Tooltip("착지 시 카메라 기울기 (도)")]
         private float landingTiltAmount = 2f;
+
+        [Header("Debug")]
+        [SerializeField, Tooltip("착지 디버그 정보 표시")]
+        private bool showLandingDebug = false;
 
         #endregion
 
@@ -111,6 +115,9 @@ namespace InfimaGames.LowPolyShooterPack
         private int currentRunStepIndex = 0;
         private float stepTimer = 0f;
         private bool wasMovingLastFrame = false;
+
+        // ✅ 착지 판정용 낙하 속도 저장
+        private float lastAirborneVelocity = 0f;
 
         #endregion
 
@@ -173,14 +180,41 @@ namespace InfimaGames.LowPolyShooterPack
 
             float verticalVelocity = rigidBody.linearVelocity.y;
 
-            // ✅ 착지 판정 및 효과
+            // ✅ 공중에 있을 때 낙하 속도 기록
+            if (!grounded && verticalVelocity < 0)
+            {
+                lastAirborneVelocity = verticalVelocity;
+            }
+
+            // ✅ 착지 판정 및 효과 (절댓값으로 비교)
             if (!wasGroundedLastFrame && grounded)
             {
-                // 일정 속도 이상으로 떨어졌을 때만 착지 효과 적용
-                if (verticalVelocity < minFallSpeedForLanding)
+                float fallSpeed = Mathf.Abs(lastAirborneVelocity);
+                
+                if (showLandingDebug)
                 {
+                    Debug.Log($"<color=yellow>[Landing Check] 낙하 속도: {fallSpeed:F2} | 최소 요구: {minFallSpeedForLanding:F2}</color>");
+                }
+
+                // 절댓값으로 비교
+                if (fallSpeed >= minFallSpeedForLanding)
+                {
+                    if (showLandingDebug)
+                    {
+                        Debug.Log($"<color=green>[Landing] 착지 효과 발동! 속도: {fallSpeed:F2}</color>");
+                    }
                     OnLanded();
                 }
+                else
+                {
+                    if (showLandingDebug)
+                    {
+                        Debug.Log($"<color=gray>[Landing] 착지 효과 무시 (속도 부족)</color>");
+                    }
+                }
+
+                // 착지 후 속도 초기화
+                lastAirborneVelocity = 0f;
             }
 
             wasGroundedLastFrame = grounded;
@@ -360,8 +394,9 @@ namespace InfimaGames.LowPolyShooterPack
             isLandingDipActive = true;
             float elapsedTime = 0f;
 
-            float fallSpeed = Mathf.Abs(rigidBody.linearVelocity.y);
-            float impactStrength = Mathf.Clamp01((fallSpeed - Mathf.Abs(minFallSpeedForLanding)) / 10f);
+            // ✅ 이미 저장된 lastAirborneVelocity 사용
+            float fallSpeed = Mathf.Abs(lastAirborneVelocity);
+            float impactStrength = Mathf.Clamp01((fallSpeed - minFallSpeedForLanding) / 10f);
             
             float actualDipAmount = landingDipAmount * (0.5f + impactStrength * 0.5f);
             float actualTiltAmount = landingTiltAmount * (0.5f + impactStrength * 0.5f);

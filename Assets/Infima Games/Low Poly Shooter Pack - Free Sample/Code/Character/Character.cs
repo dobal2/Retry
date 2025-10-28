@@ -322,7 +322,7 @@ namespace InfimaGames.LowPolyShooterPack
 				// 적용
 				characterAnimator.SetLayerWeight(additiveLayerIndex, newWeight);
     
-				Debug.Log($"Weight: {newWeight}, Moving: {isMoving}, Running: {isRunning}");
+				//Debug.Log($"Weight: {newWeight}, Moving: {isMoving}, Running: {isRunning}");
 			}
 
 
