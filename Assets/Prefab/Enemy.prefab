@@ -125,7 +125,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 321e430f36fa1a049bd24e2e38b736b4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  updateInterval: 0.1
+  moveSpeed: 3.5
+  rotationSpeed: 5
+  stoppingDistance: 2
+  detectionRange: 15
+  obstacleDetectionDistance: 2
+  avoidanceAngle: 45
+  obstacleLayer:
+    serializedVersion: 2
+    m_Bits: 0
 --- !u!54 &6446900394579092041
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -134,7 +142,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9077088082737754624}
   serializedVersion: 4
-  m_Mass: 1
+  m_Mass: 1000
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}

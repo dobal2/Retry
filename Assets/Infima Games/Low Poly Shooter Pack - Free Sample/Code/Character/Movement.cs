@@ -42,12 +42,8 @@ namespace InfimaGames.LowPolyShooterPack
         [Header("Jump Settings")]
         [SerializeField, Tooltip("점프 힘 세기")]
         private float jumpForce = 6.0f;
-        [SerializeField, Tooltip("점프 가능한 최대 높이 감지 거리")]
-        private float groundCheckDistance = 0.3f;
         [SerializeField, Tooltip("지면 레이어")]
         private LayerMask groundLayer;
-        
-        private bool wasGroundedLastFrame;
         
         [SerializeField] private ShakeData shakeData;
         [SerializeField] private CameraShaker cameraShaker;
@@ -57,8 +53,15 @@ namespace InfimaGames.LowPolyShooterPack
         private float landingSpeedMultiplier = 0.3f;
         [SerializeField, Tooltip("속도가 회복되는 시간 (초)")]
         private float landingRecoveryTime = 0.5f;
-        [SerializeField, Tooltip("착지 판정 최소 낙하 속도 (양수로 입력, 예: 5)")]
+        [SerializeField, Tooltip("착지 판정 최소 낙하 속도 (양수로 입력)")]
         private float minFallSpeedForLanding = 5f;
+        
+        [SerializeField, Tooltip("착지 효과가 발동되는 최대 경사각 (도)")]
+        private float maxSlopeAngleForLanding = 45f;
+        
+        // ✅ 공중에 있어야 하는 최소 시간
+        [SerializeField, Tooltip("착지 효과를 위한 최소 공중 시간 (초)")]
+        private float minAirborneTime = 0.2f;
 
         [Header("Landing Camera Effect")]
         [SerializeField, Tooltip("카메라 Transform (Main Camera)")]
@@ -96,8 +99,6 @@ namespace InfimaGames.LowPolyShooterPack
         private CharacterBehaviour playerCharacter;
         private WeaponBehaviour equippedWeapon;
 
-        private readonly RaycastHit[] groundHits = new RaycastHit[8];
-
         // 카메라 착지 효과
         private bool isLandingDipActive = false;
         private Vector3 originalCameraLocalPos;
@@ -116,8 +117,10 @@ namespace InfimaGames.LowPolyShooterPack
         private float stepTimer = 0f;
         private bool wasMovingLastFrame = false;
 
-        // ✅ 착지 판정용 낙하 속도 저장
-        private float lastAirborneVelocity = 0f;
+        // ✅ 착지 판정 개선 변수들
+        private float velocityBeforeLanding = 0f;
+        private bool wasGroundedLastFrame = true; // 이전 프레임에 지면에 있었는지
+        private float airborneTimer = 0f; // 공중에 있던 시간
 
         #endregion
 
@@ -134,7 +137,7 @@ namespace InfimaGames.LowPolyShooterPack
 
             capsule = GetComponent<CapsuleCollider>();
             audioSource = GetComponent<AudioSource>();
-            audioSource.loop = false; // 배열 재생이므로 loop 끔
+            audioSource.loop = false;
 
             // 카메라 원래 위치 저장
             if (cameraTransform != null)
@@ -144,80 +147,122 @@ namespace InfimaGames.LowPolyShooterPack
             }
         }
 
-        private void OnCollisionStay()
+        private void OnCollisionEnter(Collision collision)
         {
-            Bounds bounds = capsule.bounds;
-            Vector3 extents = bounds.extents;
-            float radius = extents.x - 0.01f;
-
-            Physics.SphereCastNonAlloc(bounds.center, radius, Vector3.down,
-                groundHits, extents.y - radius * 0.5f, groundLayer, QueryTriggerInteraction.Ignore);
-
-            if (!groundHits.Any(hit => hit.collider != null && hit.collider != capsule))
+            // 지면 레이어 체크
+            if (((1 << collision.gameObject.layer) & groundLayer) == 0)
                 return;
 
-            for (var i = 0; i < groundHits.Length; i++)
-                groundHits[i] = new RaycastHit();
+            grounded = true;
+            canJump = true;
+
+            // ✅ 착지 순간의 속도 저장
+            velocityBeforeLanding = rigidBody.linearVelocity.y;
+
+            // ✅ 이전 프레임에 공중에 있었고, 충분히 오래 공중에 있었을 때만 착지 판정
+            if (!wasGroundedLastFrame && airborneTimer >= minAirborneTime)
+            {
+                CheckAndTriggerLanding(collision);
+            }
+            else if (showLandingDebug)
+            {
+                Debug.Log($"<color=gray>[Landing] 착지 무시 - 공중시간 부족: {airborneTimer:F2}초 (최소: {minAirborneTime}초)</color>");
+            }
+        }
+
+        private void OnCollisionStay(Collision collision)
+        {
+            // 지면 레이어 체크
+            if (((1 << collision.gameObject.layer) & groundLayer) == 0)
+                return;
 
             grounded = true;
             canJump = true;
         }
 
+        private void OnCollisionExit(Collision collision)
+        {
+            // 지면 레이어 체크
+            if (((1 << collision.gameObject.layer) & groundLayer) == 0)
+                return;
+
+            grounded = false;
+        }
+
+        private void CheckAndTriggerLanding(Collision collision)
+        {
+            float fallSpeed = Mathf.Abs(velocityBeforeLanding);
+
+            // 낙하 속도 체크
+            if (fallSpeed < minFallSpeedForLanding)
+            {
+                if (showLandingDebug)
+                {
+                    Debug.Log($"<color=gray>[Landing] 착지 무시 - 속도 부족: {fallSpeed:F2}</color>");
+                }
+                return;
+            }
+
+            // ✅ 경사각 체크
+            float slopeAngle = 90f;
+            if (collision.contactCount > 0)
+            {
+                Vector3 normal = collision.contacts[0].normal;
+                slopeAngle = Vector3.Angle(Vector3.up, normal);
+
+                if (showLandingDebug)
+                {
+                    Debug.Log($"<color=cyan>[Landing Check]</color> " +
+                              $"낙하속도: {fallSpeed:F2} | " +
+                              $"경사각: {slopeAngle:F1}° | " +
+                              $"공중시간: {airborneTimer:F2}초");
+                }
+            }
+
+            // 경사각이 너무 크면 착지 효과 무시
+            if (slopeAngle > maxSlopeAngleForLanding)
+            {
+                if (showLandingDebug)
+                {
+                    Debug.Log($"<color=yellow>[Landing] 착지 무시 - 경사각 초과: {slopeAngle:F1}°</color>");
+                }
+                return;
+            }
+
+            // ✅ 모든 조건 통과 - 착지 효과 발동!
+            if (showLandingDebug)
+            {
+                Debug.Log($"<color=green>[Landing] 착지 효과 발동! 속도: {fallSpeed:F2}, 경사각: {slopeAngle:F1}°, 공중시간: {airborneTimer:F2}초</color>");
+            }
+            OnLanded();
+        }
+
         protected override void FixedUpdate()
         {
             MoveCharacter();
-            grounded = false;
+            
+            // ✅ 공중에 있으면 타이머 증가
+            if (!grounded)
+            {
+                airborneTimer += Time.fixedDeltaTime;
+            }
+            else
+            {
+                // 지면에 있으면 타이머 리셋
+                airborneTimer = 0f;
+            }
+            
             jumpPressed = false;
         }
         
         protected override void LateUpdate()
         {
-            MoveCharacter();
-
+            // ✅ 이전 프레임 상태 저장 (다음 프레임 판정용)
+            wasGroundedLastFrame = grounded;
+            
             // 점프 처리
             if (jumpPressed && canJump && grounded)
                 PerformJump();
-
-            float verticalVelocity = rigidBody.linearVelocity.y;
-
-            // ✅ 공중에 있을 때 낙하 속도 기록
-            if (!grounded && verticalVelocity < 0)
-            {
-                lastAirborneVelocity = verticalVelocity;
-            }
-
-            // ✅ 착지 판정 및 효과 (절댓값으로 비교)
-            if (!wasGroundedLastFrame && grounded)
-            {
-                float fallSpeed = Mathf.Abs(lastAirborneVelocity);
-                
-                if (showLandingDebug)
-                {
-                    Debug.Log($"<color=yellow>[Landing Check] 낙하 속도: {fallSpeed:F2} | 최소 요구: {minFallSpeedForLanding:F2}</color>");
-                }
-
-                // 절댓값으로 비교
-                if (fallSpeed >= minFallSpeedForLanding)
-                {
-                    if (showLandingDebug)
-                    {
-                        Debug.Log($"<color=green>[Landing] 착지 효과 발동! 속도: {fallSpeed:F2}</color>");
-                    }
-                    OnLanded();
-                }
-                else
-                {
-                    if (showLandingDebug)
-                    {
-                        Debug.Log($"<color=gray>[Landing] 착지 효과 무시 (속도 부족)</color>");
-                    }
-                }
-
-                // 착지 후 속도 초기화
-                lastAirborneVelocity = 0f;
-            }
-
-            wasGroundedLastFrame = grounded;
         }
 
         protected override void Update()
@@ -263,6 +308,9 @@ namespace InfimaGames.LowPolyShooterPack
             rigidBody.linearVelocity = vel;
 
             rigidBody.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
+            
+            // ✅ 점프 시작 시 공중 타이머 리셋
+            airborneTimer = 0f;
         }
 
         private void PlayFootstepSounds()
@@ -271,12 +319,9 @@ namespace InfimaGames.LowPolyShooterPack
 
             if (isMoving)
             {
-                // 발소리 타이머 업데이트
                 stepTimer += Time.deltaTime;
-
                 float currentInterval = playerCharacter.IsRunning() ? runStepInterval : walkStepInterval;
 
-                // 타이머가 간격을 넘으면 발소리 재생
                 if (stepTimer >= currentInterval)
                 {
                     PlayNextFootstep();
@@ -285,16 +330,12 @@ namespace InfimaGames.LowPolyShooterPack
             }
             else
             {
-                // 멈추면 타이머 리셋
                 stepTimer = 0f;
             }
 
             wasMovingLastFrame = isMoving;
         }
 
-        /// <summary>
-        /// 다음 발소리 재생
-        /// </summary>
         private void PlayNextFootstep()
         {
             AudioClip[] clips;
@@ -319,22 +360,17 @@ namespace InfimaGames.LowPolyShooterPack
                 currentWalkStepIndex = (currentWalkStepIndex + 1) % audioClipsWalking.Length;
             }
 
-            // 발소리 재생
             if (clips[currentIndex] != null)
             {
                 audioSource.PlayOneShot(clips[currentIndex]);
             }
         }
 
-        /// <summary>
-        /// 착지 소리 재생
-        /// </summary>
         private void PlayLandingSound()
         {
             if (audioClipsLanding == null || audioClipsLanding.Length == 0)
                 return;
 
-            // 랜덤으로 착지 소리 선택
             int randomIndex = Random.Range(0, audioClipsLanding.Length);
             AudioClip landingClip = audioClipsLanding[randomIndex];
 
@@ -344,12 +380,8 @@ namespace InfimaGames.LowPolyShooterPack
             }
         }
 
-        /// <summary>
-        /// 착지 시 호출
-        /// </summary>
         private void OnLanded()
         {
-            // 착지 소리 재생
             PlayLandingSound();
 
             // 속도 회복
@@ -366,9 +398,6 @@ namespace InfimaGames.LowPolyShooterPack
             }
         }
 
-        /// <summary>
-        /// 착지 후 속도 회복
-        /// </summary>
         private IEnumerator RecoverSpeedAfterLanding()
         {
             currentSpeedMultiplier = landingSpeedMultiplier;
@@ -386,16 +415,12 @@ namespace InfimaGames.LowPolyShooterPack
             speedRecoveryCoroutine = null;
         }
 
-        /// <summary>
-        /// 착지 시 카메라 딥 효과
-        /// </summary>
         private IEnumerator LandingCameraDip()
         {
             isLandingDipActive = true;
             float elapsedTime = 0f;
 
-            // ✅ 이미 저장된 lastAirborneVelocity 사용
-            float fallSpeed = Mathf.Abs(lastAirborneVelocity);
+            float fallSpeed = Mathf.Abs(velocityBeforeLanding);
             float impactStrength = Mathf.Clamp01((fallSpeed - minFallSpeedForLanding) / 10f);
             
             float actualDipAmount = landingDipAmount * (0.5f + impactStrength * 0.5f);
@@ -408,11 +433,9 @@ namespace InfimaGames.LowPolyShooterPack
                 float t = elapsedTime / downDuration;
                 float easeT = 1f - Mathf.Pow(1f - t, 3f);
 
-                // 아래로 이동
                 Vector3 targetPos = originalCameraLocalPos + Vector3.down * actualDipAmount * easeT;
                 cameraTransform.localPosition = targetPos;
                 
-                // 앞으로 기울임
                 Quaternion targetRot = originalCameraLocalRot * Quaternion.Euler(actualTiltAmount * easeT, 0, 0);
                 cameraTransform.localRotation = targetRot;
                 

@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class HS_ProjectileHolder : MonoBehaviour
 {
-    [Header("Visual Effects")]
+    [Header("Visual Effects")] 
     [SerializeField] protected GameObject flash;
     [SerializeField] protected ParticleSystem projectilePS;
     [SerializeField] protected Light lightSource;

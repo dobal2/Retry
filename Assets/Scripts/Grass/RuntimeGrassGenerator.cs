@@ -210,51 +210,51 @@ public class RuntimeGrassGenerator : MonoBehaviour
             // 배치 생성
             for (int j = 0; j < currentBatchSize; j++)
             {
-                var point = new NativeArray<Vector3>(1, Allocator.Temp);
-                var normals = new NativeArray<Vector3>(1, Allocator.Temp);
-                var lengthWidth = new NativeArray<float>(1, Allocator.Temp);
+                var point = new NativeArray<Vector3>(1, Allocator.TempJob);
+                var normals = new NativeArray<Vector3>(1, Allocator.TempJob);
+                var lengthWidth = new NativeArray<float>(1, Allocator.TempJob);
                 
                 var job = new GrassGenerationJob
                 {
                     CumulativeSizes = cumulativeSizes,
+                    Sizes = sizes,
+                    Total = total,
                     MeshColors = meshColors,
-                    MeshTriangles = meshTriangles,
                     MeshVertices = meshVertices,
                     MeshNormals = meshNormals,
-                    Total = total,
-                    Sizes = sizes,
+                    MeshTriangles = meshTriangles,
                     Point = point,
-                    Normals = normals,
                     LengthWidth = lengthWidth,
+                    Normals = normals
                 };
                 
-                job.Execute();
+                job.Run();
                 
-                GrassData newData = new GrassData();
-                Vector3 newPoint = point[0];
-                newData.position = localToWorld.MultiplyPoint3x4(newPoint);
-                
-                // 충돌 체크 (옵션)
-                if (useCollisionCheck)
+                if (point[0] != Vector3.zero)
                 {
-                    Collider[] cols = Physics.OverlapBox(newData.position, Vector3.one * 0.2f, Quaternion.identity, paintBlockMask);
-                    if (cols.Length > 0)
+                    GrassData newData = new GrassData();
+                    Vector3 worldPoint = localToWorld.MultiplyPoint3x4(point[0]);
+                    newData.position = worldPoint;
+                    
+                    // 충돌 체크 (옵션)
+                    if (useCollisionCheck)
                     {
-                        point.Dispose();
-                        normals.Dispose();
-                        lengthWidth.Dispose();
-                        continue;
+                        Collider[] cols = Physics.OverlapBox(newData.position, Vector3.one * 0.2f, Quaternion.identity, paintBlockMask);
+                        if (cols.Length > 0)
+                        {
+                            point.Dispose();
+                            normals.Dispose();
+                            lengthWidth.Dispose();
+                            continue;
+                        }
                     }
-                }
-                
-                Vector3 worldNormal = targetObject.transform.TransformDirection(normals[0]);
-                
-                if (worldNormal.y <= (1 + normalLimit) && worldNormal.y >= (1 - normalLimit))
-                {
-                    if (newPoint != Vector3.zero)
+                    
+                    Vector3 worldNormal = localToWorld.MultiplyVector(normals[0]).normalized;
+                    
+                    if (worldNormal.y <= (1 + normalLimit) && worldNormal.y >= (1 - normalLimit))
                     {
                         newData.color = GetRandomColor();
-                        newData.length = new Vector2(sizeWidth, sizeLength) * lengthWidth[0];
+                        newData.length = new Vector2(sizeWidth, sizeLength);
                         newData.normal = worldNormal;
                         grassData.Add(newData);
                     }
@@ -433,7 +433,7 @@ public class RuntimeGrassGenerator : MonoBehaviour
         return sizes;
     }
     
-    // Burst Job
+    // Burst Job 구조체
     [BurstCompile(CompileSynchronously = true)]
     private struct GrassGenerationJob : IJob
     {
