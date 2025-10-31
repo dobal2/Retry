@@ -4909,7 +4909,8 @@ MonoBehaviour:
   - {fileID: 1004861296854544}
   projectilePS: {fileID: 1303599035310254102}
   notDestroy: 0
-  isHoming: 1
+  entityType: 2
+  isHoming: 0
   homingDelay: 0.1
   homingRange: 5
   rotationSpeed: 20
