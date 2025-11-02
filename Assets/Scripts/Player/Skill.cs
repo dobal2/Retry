@@ -21,21 +21,22 @@ public class Skill : MonoBehaviour
     [Header("Visual Effects")]
     [SerializeField] private float normalSaturation = 30f;
     [SerializeField] private float timeStopSaturation = -100f;
-    [SerializeField] private float saturationTransitionSpeed = 5f;
+    [SerializeField] private float saturationTransitionSpeed = 15f;
+    [SerializeField] private float saturationRestoreSpeed = 2f;
     
     [Header("Hue Shift Effect")]
     [SerializeField] private bool useHueShift = true;
-    [SerializeField] private float hueShiftDuration = 0.5f; // 0 → 180 올라가는 시간
-    [SerializeField] private float hueResetDuration = 0.3f; // 180 → 0 빠르게 돌아오는 시간
+    [SerializeField] private float hueShiftDuration = 0.5f;
+    [SerializeField] private float hueResetDuration = 0.3f;
     [SerializeField] private float maxHueShift = 180f;
     
     [Header("Lens Distortion Effect")]
     [SerializeField] private bool useLensDistortion = true;
-    [SerializeField] private float distortionPeakValue = 0.3f; // 처음 최고점
-    [SerializeField] private float distortionMinValue = -0.7f; // 최저점
-    [SerializeField] private float distortionUpDuration = 0.2f; // 0 → 0.3 시간
-    [SerializeField] private float distortionDownDuration = 0.3f; // 0.3 → -0.7 시간
-    [SerializeField] private float distortionResetDuration = 0.3f; // -0.7 → 0 시간
+    [SerializeField] private float distortionPeakValue = 0.3f;
+    [SerializeField] private float distortionMinValue = -0.7f;
+    [SerializeField] private float distortionUpDuration = 0.2f;
+    [SerializeField] private float distortionDownDuration = 0.3f;
+    [SerializeField] private float distortionResetDuration = 0.3f;
     
     [Header("Chromatic Aberration")]
     [SerializeField] private bool useChromaticAberration = true;
@@ -51,7 +52,19 @@ public class Skill : MonoBehaviour
     [SerializeField] private ShakeData shakeData;
     [SerializeField] private CameraShaker cameraShaker;
 
+    [Header("Sound Settings")]
+    [SerializeField] private float clockSoundInterval = 1f;
+    
+    [Header("Volumetric Fog")]
+    [SerializeField] private Material volumetricFogMaterial;
+    [SerializeField] private float fogColorTransitionSpeed = 5f; 
+    
+    private Coroutine fogColorCoroutine;
+
     private Coroutine timeStopCoroutine;
+    private Coroutine clockSoundCoroutine;
+    private Coroutine saturationCoroutine; // ✅ Saturation 코루틴 추적
+    private bool isTimeStopActive = false;
 
     private void Start()
     {
@@ -103,6 +116,15 @@ public class Skill : MonoBehaviour
                 Debug.LogWarning("CameraShaker not found in scene!");
             }
         }
+        
+        if (volumetricFogMaterial != null)
+        {
+            volumetricFogMaterial.SetFloat("_ColorBlend", 0f);
+        }
+        else
+        {
+            Debug.LogWarning("Volumetric Fog Material not assigned!");
+        }
     }
 
     void Update()
@@ -143,6 +165,7 @@ public class Skill : MonoBehaviour
     private void ActivateTimeStop()
     {
         // 쿨타임 리셋
+        SoundManager.Instance.PlaySfx(SoundManager.Sfx.TimeStop);
         curTime = 0f;
 
         // 카메라 쉐이크
@@ -155,16 +178,15 @@ public class Skill : MonoBehaviour
         StartCoroutine(TimeStopEffectSequence());
     }
 
-    /// <summary>
-    /// 시간 정지 이펙트 전체 시퀀스
-    /// 모든 이펙트 동시 시작 → 모두 끝난 후 시간 정지
-    /// </summary>
-    /// <summary>
-    /// 시간 정지 이펙트 전체 시퀀스
-    /// 모든 이펙트 동시 시작 → 렌즈 디스톨션 끝나기 0.1초 전에 시간 정지
-    /// </summary>
     IEnumerator TimeStopEffectSequence()
     {
+        // ✅ 이전 Saturation 코루틴 중단
+        if (saturationCoroutine != null)
+        {
+            StopCoroutine(saturationCoroutine);
+            saturationCoroutine = null;
+        }
+
         // ✅ 모든 이펙트를 동시에 시작
         Coroutine lensDistortionCoroutine = null;
         Coroutine hueShiftCoroutine = null;
@@ -176,6 +198,15 @@ public class Skill : MonoBehaviour
         {
             lensDistortionCoroutine = StartCoroutine(LensDistortionSequence());
         }
+        
+        if (volumetricFogMaterial != null)
+        {
+            if (fogColorCoroutine != null)
+            {
+                StopCoroutine(fogColorCoroutine);
+            }
+            fogColorCoroutine = StartCoroutine(TransitionFogColor(1f, fogColorTransitionSpeed));
+        }
 
         // Hue Shift → 흑백 시작
         if (useHueShift)
@@ -184,7 +215,7 @@ public class Skill : MonoBehaviour
         }
         else
         {
-            hueShiftCoroutine = StartCoroutine(TransitionSaturation(timeStopSaturation, saturationTransitionSpeed));
+            saturationCoroutine = StartCoroutine(TransitionSaturation(timeStopSaturation, saturationTransitionSpeed));
         }
 
         // Chromatic Aberration 시작
@@ -209,8 +240,16 @@ public class Skill : MonoBehaviour
         yield return new WaitForSecondsRealtime(timeStopTriggerTime);
 
         // ✅ 시간 정지 시작!
+        isTimeStopActive = true;
         TimeStopManager.Instance.StartTimeStop();
         Debug.Log("[Skill] Time Stop activated!");
+
+        // ✅ 시계 소리 반복 재생 시작
+        if (clockSoundCoroutine != null)
+        {
+            StopCoroutine(clockSoundCoroutine);
+        }
+        clockSoundCoroutine = StartCoroutine(PlayClockSoundLoop());
 
         // 지속시간 후 종료
         if (timeStopCoroutine != null)
@@ -220,9 +259,25 @@ public class Skill : MonoBehaviour
         timeStopCoroutine = StartCoroutine(TimeStopDuration(timeStopDuration));
     }
 
-    /// <summary>
-    /// Lens Distortion: 0 → 0.3 → -0.7 → 0
-    /// </summary>
+    IEnumerator PlayClockSoundLoop()
+    {
+        while (isTimeStopActive)
+        {
+            SoundManager.Instance.PlaySfx(SoundManager.Sfx.ClockSound);
+            
+            // 대기 중에도 상태 체크
+            float elapsed = 0f;
+            while (elapsed < clockSoundInterval && isTimeStopActive)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+        }
+        
+        clockSoundCoroutine = null;
+        Debug.Log("[Skill] Clock sound loop ended");
+    }
+
     IEnumerator LensDistortionSequence()
     {
         if (_lensDistortion == null) yield break;
@@ -267,12 +322,16 @@ public class Skill : MonoBehaviour
         _lensDistortion.intensity.value = 0f;
     }
 
-    /// <summary>
-    /// Hue Shift 0 → 180 → 0 → 흑백 순서
-    /// </summary>
     IEnumerator HueShiftSequence()
     {
         if (_colorAdjustments == null) yield break;
+
+        // ✅ 이전 Saturation 코루틴이 있다면 중단
+        if (saturationCoroutine != null)
+        {
+            StopCoroutine(saturationCoroutine);
+            saturationCoroutine = null;
+        }
 
         // 1단계: Hue Shift 0 → 180 (무지개 색상 변화)
         float elapsed = 0f;
@@ -280,34 +339,49 @@ public class Skill : MonoBehaviour
         {
             elapsed += Time.unscaledDeltaTime;
             float t = elapsed / hueShiftDuration;
-            
+    
             _colorAdjustments.hueShift.value = Mathf.Lerp(0f, maxHueShift, t);
             yield return null;
         }
-        
+
         _colorAdjustments.hueShift.value = maxHueShift;
-        
-        // 2단계: Hue Shift 180 → 0 (빠르게 복귀)
+
+        // 2단계: Hue Shift 180 → 0 (빠르게 복귀) + 0.2초 전에 흑백 전환 시작
         elapsed = 0f;
+        bool saturationStarted = false;
+        float saturationStartTime = hueResetDuration - 0.3f; // 끝나기 0.2초 전
+    
+        if (saturationStartTime < 0f)
+            saturationStartTime = 0f;
+
         while (elapsed < hueResetDuration)
         {
             elapsed += Time.unscaledDeltaTime;
             float t = elapsed / hueResetDuration;
-            
-            // 빠르게 복귀
+    
             _colorAdjustments.hueShift.value = Mathf.Lerp(maxHueShift, 0f, t);
+        
+            // ✅ 0.2초 전에 흑백 전환 시작
+            if (!saturationStarted && elapsed >= saturationStartTime)
+            {
+                saturationStarted = true;
+                saturationCoroutine = StartCoroutine(TransitionSaturation(timeStopSaturation, saturationTransitionSpeed));
+                Debug.Log("[Skill] Saturation transition started (0.2s before hue reset ends)");
+            }
+        
             yield return null;
         }
-        
+
         _colorAdjustments.hueShift.value = 0f;
-        
-        // 3단계: 흑백으로 전환
-        yield return StartCoroutine(TransitionSaturation(timeStopSaturation, saturationTransitionSpeed));
+    
+        // ✅ 혹시 트랜지션이 시작 안됐으면 여기서라도 시작
+        if (!saturationStarted)
+        {
+            saturationCoroutine = StartCoroutine(TransitionSaturation(timeStopSaturation, saturationTransitionSpeed));
+            Debug.Log("[Skill] Saturation transition started (fallback)");
+        }
     }
 
-    /// <summary>
-    /// Chromatic Aberration 펄스 효과
-    /// </summary>
     IEnumerator ChromaticAberrationPulse()
     {
         if (_chromaticAberration == null) yield break;
@@ -327,9 +401,6 @@ public class Skill : MonoBehaviour
         _chromaticAberration.intensity.value = maxChromaticIntensity * 0.3f;
     }
 
-    /// <summary>
-    /// Vignette 전환
-    /// </summary>
     IEnumerator TransitionVignette(float targetIntensity, float speed)
     {
         if (_vignette == null) yield break;
@@ -348,20 +419,35 @@ public class Skill : MonoBehaviour
 
     IEnumerator TimeStopDuration(float duration)
     {
-        // ✅ WaitForSecondsRealtime 사용 (timeScale 영향 안받음)
         yield return new WaitForSecondsRealtime(duration);
-
-        // 시간정지 해제
         DeactivateTimeStop();
     }
 
     private void DeactivateTimeStop()
     {
-        // 시간정지 종료
+        // ✅ 먼저 플래그를 false로 설정
+        isTimeStopActive = false;
+        Debug.Log("[Skill] Time Stop flag set to false");
+        
+        // ✅ 시계 소리 코루틴 중단
+        if (clockSoundCoroutine != null)
+        {
+            StopCoroutine(clockSoundCoroutine);
+            clockSoundCoroutine = null;
+        }
+        
+        // ✅ 재생 중인 모든 시계 소리를 즉시 중단
+        SoundManager.Instance.StopAllClockSounds();
+
+        // ✅ 시간정지 종료
         TimeStopManager.Instance.StopTimeStop();
 
-        // 비주얼 복구
-        StartCoroutine(TransitionSaturation(normalSaturation, saturationTransitionSpeed));
+        // ✅ 이전 Saturation 코루틴 중단 후 새로 시작
+        if (saturationCoroutine != null)
+        {
+            StopCoroutine(saturationCoroutine);
+        }
+        saturationCoroutine = StartCoroutine(TransitionSaturation(normalSaturation, saturationRestoreSpeed));
 
         // Hue Shift 초기화
         if (_colorAdjustments != null)
@@ -381,18 +467,41 @@ public class Skill : MonoBehaviour
             StartCoroutine(TransitionVignette(0f, vignetteSpeed));
         }
 
-        // Lens Distortion 초기화 (혹시 모를 잔여값 제거)
+        // Lens Distortion 초기화
         if (_lensDistortion != null)
         {
             _lensDistortion.intensity.value = 0f;
         }
+        
+        if (volumetricFogMaterial != null)
+        {
+            if (fogColorCoroutine != null)
+            {
+                StopCoroutine(fogColorCoroutine);
+            }
+            fogColorCoroutine = StartCoroutine(TransitionFogColor(0f, fogColorTransitionSpeed));
+        }
 
         Debug.Log("[Skill] Time Stop ended!");
     }
+    
+    IEnumerator TransitionFogColor(float targetBlend, float speed)
+    {
+        if (volumetricFogMaterial == null) yield break;
 
-    /// <summary>
-    /// Chromatic Aberration 전환
-    /// </summary>
+        float currentBlend = volumetricFogMaterial.GetFloat("_ColorBlend");
+
+        while (Mathf.Abs(currentBlend - targetBlend) > 0.01f)
+        {
+            currentBlend = Mathf.Lerp(currentBlend, targetBlend, Time.unscaledDeltaTime * speed);
+            volumetricFogMaterial.SetFloat("_ColorBlend", currentBlend);
+            yield return null;
+        }
+
+        volumetricFogMaterial.SetFloat("_ColorBlend", targetBlend);
+        fogColorCoroutine = null;
+    }
+
     IEnumerator TransitionChromaticAberration(float targetIntensity, float speed)
     {
         if (_chromaticAberration == null) yield break;
@@ -409,9 +518,6 @@ public class Skill : MonoBehaviour
         _chromaticAberration.intensity.value = targetIntensity;
     }
 
-    /// <summary>
-    /// 부드러운 Saturation 전환
-    /// </summary>
     IEnumerator TransitionSaturation(float targetSaturation, float speed)
     {
         if (_colorAdjustments == null) yield break;
@@ -426,6 +532,7 @@ public class Skill : MonoBehaviour
         }
 
         _colorAdjustments.saturation.value = targetSaturation;
+        saturationCoroutine = null; // ✅ 완료 시 null로 설정
     }
 
     public void SetSaturation(float newSaturation)

@@ -23,7 +23,7 @@ RenderSettings:
   m_AmbientSkyColor: {r: 0.212, g: 0.227, b: 0.259, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
-  m_AmbientIntensity: 1
+  m_AmbientIntensity: 1.06
   m_AmbientMode: 0
   m_SubtractiveShadowColor: {r: 0.42, g: 0.478, b: 0.627, a: 1}
   m_SkyboxMaterial: {fileID: 2100000, guid: 50bf15468c19e0e40b5bf26662770a34, type: 2}
@@ -33,11 +33,11 @@ RenderSettings:
   m_HaloTexture: {fileID: 0}
   m_SpotCookie: {fileID: 10001, guid: 0000000000000000e000000000000000, type: 0}
   m_DefaultReflectionMode: 0
-  m_DefaultReflectionResolution: 128
+  m_DefaultReflectionResolution: 256
   m_ReflectionBounces: 1
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
-  m_Sun: {fileID: 0}
+  m_Sun: {fileID: 410087040}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1896,53 +1896,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!21 &1110437337
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Grass(Clone)
-  m_Shader: {fileID: -6465566751694194690, guid: 2122091ccbbafff48bdc930e3b94de8c,
-    type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 1
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses:
-  - MOTIONVECTORS
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _Blend: 1
-    - _BlendMult: 1
-    - _BlendOff: 0
-    - _QueueControl: 0
-    - _QueueOffset: 0
-    m_Colors: []
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &1255124562
 GameObject:
   m_ObjectHideFlags: 0
@@ -5078,7 +5031,7 @@ MonoBehaviour:
     normal: {x: 0, y: 1, z: 4.7098787e-18}
     length: {x: 0.2, y: 0.2}
     color: {x: 1, y: 1, z: 1}
-  m_InstantiatedMaterial: {fileID: 1110437337}
+  m_InstantiatedMaterial: {fileID: 1755216898}
 --- !u!4 &1679519195
 Transform:
   m_ObjectHideFlags: 0
@@ -5188,6 +5141,53 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1724706581}
   m_CullTransparentMesh: 1
+--- !u!21 &1755216898
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Grass(Clone)
+  m_Shader: {fileID: -6465566751694194690, guid: 2122091ccbbafff48bdc930e3b94de8c,
+    type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses:
+  - MOTIONVECTORS
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Blend: 1
+    - _BlendMult: 1
+    - _BlendOff: 0
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    m_Colors: []
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &1795973770 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 1066618479810269397, guid: 181d076afb5b68e48ae39fdf5634485e,
@@ -5218,15 +5218,16 @@ MonoBehaviour:
   normalSaturation: 30
   timeStopSaturation: -100
   saturationTransitionSpeed: 5
+  saturationRestoreSpeed: 2
   useHueShift: 1
-  hueShiftDuration: 1.1
+  hueShiftDuration: 1.4
   hueResetDuration: 0.5
   maxHueShift: 140
   useLensDistortion: 1
-  distortionPeakValue: 0.5
+  distortionPeakValue: 0.8
   distortionMinValue: -1
-  distortionUpDuration: 0.4
-  distortionDownDuration: 1
+  distortionUpDuration: 0.6
+  distortionDownDuration: 1.2
   distortionResetDuration: 0.5
   useChromaticAberration: 1
   maxChromaticIntensity: 1
@@ -5236,6 +5237,10 @@ MonoBehaviour:
   vignetteSpeed: 5
   shakeData: {fileID: 11400000, guid: 52f6e947b12a9a141960dcffe14b8979, type: 2}
   cameraShaker: {fileID: 2105016522}
+  clockSoundInterval: 1
+  volumetricFogMaterial: {fileID: 2100000, guid: d48f871ac59bb034cb0c787fa2d9b595,
+    type: 2}
+  fogColorTransitionSpeed: 5
 --- !u!1001 &1808411035
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -5486,6 +5491,60 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!1 &1893815595
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1893815597}
+  - component: {fileID: 1893815596}
+  m_Layer: 0
+  m_Name: SoundsManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1893815596
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1893815595}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41a81f85655ff9e46bea86d74b783f32, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bgmPlayer: {fileID: 0}
+  bgmClips: []
+  bgmVolume: 0
+  bgmMixerGroup: {fileID: 0}
+  sfxPlayers: []
+  sfxClips:
+  - {fileID: 8300000, guid: 2b02ee716fd76d34ba43a606616c9faa, type: 3}
+  - {fileID: 8300000, guid: 8a1dff6a26fd38b4e9731f11748463ad, type: 3}
+  sfxChannelCount: 20
+  sfxVolume: 0.7
+--- !u!4 &1893815597
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1893815595}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 38.994846, y: 21.315052, z: 5.1443386}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1966757375
 GameObject:
   m_ObjectHideFlags: 0
@@ -6083,7 +6142,7 @@ PrefabInstance:
     - target: {fileID: 1415650116500202657, guid: 181d076afb5b68e48ae39fdf5634485e,
         type: 3}
       propertyPath: roundsPerMinutes
-      value: 2147483647
+      value: 100
       objectReference: {fileID: 0}
     - target: {fileID: 2131283154510712018, guid: 181d076afb5b68e48ae39fdf5634485e,
         type: 3}
@@ -6207,3 +6266,4 @@ SceneRoots:
   - {fileID: 1966757379}
   - {fileID: 1381743756}
   - {fileID: 2056858728}
+  - {fileID: 1893815597}
