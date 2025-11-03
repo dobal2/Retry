@@ -9,8 +9,10 @@ public class ChunkData
     public int chunkSize;
     public Vector3[] vertices;
     public int[] triangles;
+    public Vector2[] uvs;
     public float[,] heightMap;
     public Bounds bounds;
+    
 
     public ChunkData(Vector2Int coord, int size)
     {
@@ -20,6 +22,7 @@ public class ChunkData
         // 버텍스 배열 초기화 (chunkSize + 1 x chunkSize + 1 그리드)
         int vertexCount = (size + 1) * (size + 1);
         vertices = new Vector3[vertexCount];
+        uvs = new Vector2[vertexCount];
         
         // 삼각형 배열 초기화 (각 쿼드는 2개의 삼각형 = 6개의 인덱스)
         int triangleCount = size * size * 6;

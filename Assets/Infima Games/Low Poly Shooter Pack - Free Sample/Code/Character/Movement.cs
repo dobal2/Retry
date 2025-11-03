@@ -56,22 +56,24 @@ namespace InfimaGames.LowPolyShooterPack
         [SerializeField, Tooltip("착지 판정 최소 낙하 속도 (양수로 입력)")]
         private float minFallSpeedForLanding = 5f;
         
+        [Header("Landing Settings")]
+        [SerializeField, Tooltip("착지 효과를 위한 최소 공중 시간 (초)")]
+        private float minAirborneTimeForEffect = 0.3f;
         [SerializeField, Tooltip("착지 효과가 발동되는 최대 경사각 (도)")]
         private float maxSlopeAngleForLanding = 45f;
         
-        // ✅ 공중에 있어야 하는 최소 시간
         [SerializeField, Tooltip("착지 효과를 위한 최소 공중 시간 (초)")]
         private float minAirborneTime = 0.2f;
 
         [Header("Landing Camera Effect")]
         [SerializeField, Tooltip("카메라 Transform (Main Camera)")]
         private Transform cameraTransform;
-        [SerializeField, Tooltip("착지 시 카메라가 내려가는 거리")]
-        private float landingDipAmount = 0.15f;
         [SerializeField, Tooltip("착지 효과 지속 시간")]
         private float landingDipDuration = 0.3f;
-        [SerializeField, Tooltip("착지 시 카메라 기울기 (도)")]
-        private float landingTiltAmount = 2f;
+        [SerializeField, Tooltip("최대 카메라 기울기 (도)")]
+        private float maxLandingTiltAmount = 6f;
+        [SerializeField, Tooltip("최대 기울기에 도달하는 공중 시간 (초)")]
+        private float maxAirTimeForTilt = 2f;
 
         [Header("Debug")]
         [SerializeField, Tooltip("착지 디버그 정보 표시")]
@@ -191,19 +193,17 @@ namespace InfimaGames.LowPolyShooterPack
 
         private void CheckAndTriggerLanding(Collision collision)
         {
-            float fallSpeed = Mathf.Abs(velocityBeforeLanding);
-
-            // 낙하 속도 체크
-            if (fallSpeed < minFallSpeedForLanding)
+            // ★ 공중 시간만 체크
+            if (airborneTimer < minAirborneTimeForEffect)
             {
                 if (showLandingDebug)
                 {
-                    Debug.Log($"<color=gray>[Landing] 착지 무시 - 속도 부족: {fallSpeed:F2}</color>");
+                    Debug.Log($"<color=gray>[Landing] 착지 무시 - 공중시간 부족: {airborneTimer:F2}초</color>");
                 }
                 return;
             }
 
-            // ✅ 경사각 체크
+            // ★ 경사각 체크
             float slopeAngle = 90f;
             if (collision.contactCount > 0)
             {
@@ -212,10 +212,7 @@ namespace InfimaGames.LowPolyShooterPack
 
                 if (showLandingDebug)
                 {
-                    Debug.Log($"<color=cyan>[Landing Check]</color> " +
-                              $"낙하속도: {fallSpeed:F2} | " +
-                              $"경사각: {slopeAngle:F1}° | " +
-                              $"공중시간: {airborneTimer:F2}초");
+                    Debug.Log($"<color=cyan>[Landing Check]</color> 공중시간: {airborneTimer:F2}초 | 경사각: {slopeAngle:F1}°");
                 }
             }
 
@@ -229,10 +226,10 @@ namespace InfimaGames.LowPolyShooterPack
                 return;
             }
 
-            // ✅ 모든 조건 통과 - 착지 효과 발동!
+            // ★ 조건 통과 - 착지 효과 발동!
             if (showLandingDebug)
             {
-                Debug.Log($"<color=green>[Landing] 착지 효과 발동! 속도: {fallSpeed:F2}, 경사각: {slopeAngle:F1}°, 공중시간: {airborneTimer:F2}초</color>");
+                Debug.Log($"<color=green>[Landing] 착지 효과 발동! 공중시간: {airborneTimer:F2}초, 경사각: {slopeAngle:F1}°</color>");
             }
             OnLanded();
         }
@@ -420,31 +417,33 @@ namespace InfimaGames.LowPolyShooterPack
             isLandingDipActive = true;
             float elapsedTime = 0f;
 
-            float fallSpeed = Mathf.Abs(velocityBeforeLanding);
-            float impactStrength = Mathf.Clamp01((fallSpeed - minFallSpeedForLanding) / 10f);
-            
-            float actualDipAmount = landingDipAmount * (0.5f + impactStrength * 0.5f);
-            float actualTiltAmount = landingTiltAmount * (0.5f + impactStrength * 0.5f);
+            // ★ 공중 시간에 비례한 기울기 계산 (최대 6도)
+            float tiltRatio = Mathf.Clamp01(airborneTimer / maxAirTimeForTilt);
+            float actualTiltAmount = maxLandingTiltAmount * tiltRatio;
+    
+            if (showLandingDebug)
+            {
+                Debug.Log($"<color=cyan>[Landing Tilt]</color> 공중시간: {airborneTimer:F2}초, 기울기: {actualTiltAmount:F2}도");
+            }
 
+            // 내려가는 애니메이션 (30%)
             float downDuration = landingDipDuration * 0.3f;
             while (elapsedTime < downDuration)
             {
                 elapsedTime += Time.deltaTime;
                 float t = elapsedTime / downDuration;
                 float easeT = 1f - Mathf.Pow(1f - t, 3f);
-
-                Vector3 targetPos = originalCameraLocalPos + Vector3.down * actualDipAmount * easeT;
-                cameraTransform.localPosition = targetPos;
-                
+        
                 Quaternion targetRot = originalCameraLocalRot * Quaternion.Euler(actualTiltAmount * easeT, 0, 0);
                 cameraTransform.localRotation = targetRot;
-                
+        
                 yield return null;
             }
 
+            // 올라오는 애니메이션 (70%)
             float upDuration = landingDipDuration * 0.7f;
             elapsedTime = 0f;
-            
+    
             while (elapsedTime < upDuration)
             {
                 elapsedTime += Time.deltaTime;
@@ -452,19 +451,16 @@ namespace InfimaGames.LowPolyShooterPack
                 float easeT = t < 0.5f 
                     ? 4f * t * t * t 
                     : 1f - Mathf.Pow(-2f * t + 2f, 3f) / 2f;
-                
-                Vector3 currentPos = originalCameraLocalPos + Vector3.down * actualDipAmount * (1f - easeT);
-                cameraTransform.localPosition = currentPos;
-                
+        
                 Quaternion currentRot = originalCameraLocalRot * Quaternion.Euler(actualTiltAmount * (1f - easeT), 0, 0);
                 cameraTransform.localRotation = currentRot;
-                
+        
                 yield return null;
             }
 
-            cameraTransform.localPosition = originalCameraLocalPos;
+            // 원위치
             cameraTransform.localRotation = originalCameraLocalRot;
-            
+    
             isLandingDipActive = false;
             landingDipCoroutine = null;
         }

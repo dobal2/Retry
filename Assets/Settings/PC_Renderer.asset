@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b00045f12942b46c698459096c89274e, type: 3}
   m_Name: FullScreenPassRendererFeature
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   injectionPoint: 450
   fetchColorBuffer: 1
   requirements: 5
@@ -20,6 +20,33 @@ MonoBehaviour:
   passIndex: 0
   bindDepthStencilAttachment: 0
   m_Version: 1
+--- !u!114 &-1501601844961661615
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1c6e585d9d2317e438a403bbb1965d5e, type: 3}
+  m_Name: StylizedWater3.StylizedWaterRenderFeature
+  m_EditorClassIdentifier: 
+  m_Active: 1
+  transparencyRefraction: 0
+  screenSpaceReflectionSettings:
+    allow: 1
+    reflectEverything: 0
+  allowDirectionalCaustics: 0
+  heightPrePassSettings:
+    enable: 1
+    range: 500
+    cellsPerUnit: 4
+    maxResolution: 4096
+    disableInSceneView: 1
+  heightReadbackCS: {fileID: 7200000, guid: 768e0c28dfdbc6b429fd59518fa03f2d, type: 3}
+  heightProcessingShader: {fileID: 4800000, guid: a1cfcf2c2c8140c084fb10845093540e,
+    type: 3}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56,6 +83,7 @@ MonoBehaviour:
   m_RendererFeatures:
   - {fileID: 7833122117494664109}
   - {fileID: -7839995097318446522}
+  - {fileID: -1501601844961661615}
   m_RendererFeatureMap: ad6b866f10d7b46c46aa873fffbd3293
   m_UseNativeRenderPass: 1
   xrSystemData: {fileID: 0}

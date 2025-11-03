@@ -30,6 +30,13 @@ public class GrassGenerator : MonoBehaviour
     [Range(0f, 1f)]
     public float normalLimit = 0.5f;
     
+    [Header("Height Constraints")]
+    [SerializeField] private float waterLevel = -3f; // 물 레벨
+    // [SerializeField] private float minGrassHeight = -2.5f; // 최소 풀 생성 높이
+    // [SerializeField] private float maxGrassHeight = 50f; // 최대 풀 생성 높이
+    // [SerializeField] private float maxGrassSlope = 45f; // 최대 경사각 (도)
+    [SerializeField] private AnimationCurve grassDensityByHeight = AnimationCurve.Linear(0, 1, 1, 1); // 높이별 밀도
+    
     [Header("References")]
     public GrassComputeScript grassCompute;
     
@@ -63,9 +70,15 @@ public class GrassGenerator : MonoBehaviour
             Debug.Log($"Generating {numGrass} grass instances for chunk {chunkCoord}");
         }
 
+        int attemptCount = 0;
+        int successCount = 0;
+        int maxAttempts = numGrass * 2; // 실패를 대비해 더 많이 시도
+
         // 풀 생성
-        for (int i = 0; i < numGrass; i++)
+        while (successCount < numGrass && attemptCount < maxAttempts)
         {
+            attemptCount++;
+            
             // 청크 내 랜덤 위치
             float localX = Random.Range(0f, chunkSize);
             float localZ = Random.Range(0f, chunkSize);
@@ -74,11 +87,39 @@ public class GrassGenerator : MonoBehaviour
             float height = GetHeightAt(chunkData, localX, localZ);
             Vector3 normal = GetNormalAt(chunkData, localX, localZ);
             
-            // 경사도 체크
-            if (normal.y < (1 - normalLimit) || normal.y > (1 + normalLimit))
+            // 물 레벨 체크
+            if (height <= waterLevel) // 0.2f는 여유값
             {
                 continue;
             }
+            
+            // 높이 범위 체크
+            // if (height < minGrassHeight || height > maxGrassHeight)
+            // {
+            //     continue;
+            // }
+            
+            //경사도 체크 (기존 방식)
+            if (normal.y < (1 - normalLimit))
+            {
+                continue;
+            }
+            
+            //각도 기반 경사도 체크
+            float slopeAngle = Vector3.Angle(Vector3.up, normal);
+            // if (slopeAngle > maxGrassSlope)
+            // {
+            //     continue;
+            // }
+            
+            //높이별 밀도 확률 체크
+            // float heightFactor = Mathf.InverseLerp(minGrassHeight, maxGrassHeight, height);
+            // float densityChance = grassDensityByHeight.Evaluate(heightFactor);
+            //
+            // if (Random.value > densityChance)
+            // {
+            //     continue;
+            // }
             
             // 월드 좌표 계산
             Vector3 worldPos = chunkTransform.TransformPoint(new Vector3(localX, height, localZ));
@@ -92,6 +133,7 @@ public class GrassGenerator : MonoBehaviour
             };
             
             grassList.Add(grassData);
+            successCount++;
         }
         
         // 청크별로 저장
@@ -99,7 +141,7 @@ public class GrassGenerator : MonoBehaviour
         
         if (showDebugInfo)
         {
-            Debug.Log($"Generated {grassList.Count} grass instances for chunk {chunkCoord}");
+            Debug.Log($"Generated {grassList.Count} grass instances for chunk {chunkCoord} (attempted {attemptCount} times)");
         }
     }
     
@@ -216,5 +258,13 @@ public class GrassGenerator : MonoBehaviour
             grassCompute.SetGrassPaintedDataList = new List<GrassData>();
             grassCompute.Reset();
         }
+    }
+    
+    /// <summary>
+    /// 물 레벨 업데이트 (외부에서 호출 가능)
+    /// </summary>
+    public void SetWaterLevel(float level)
+    {
+        waterLevel = level;
     }
 }

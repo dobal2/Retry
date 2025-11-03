@@ -8,7 +8,8 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: MyOcean
-  m_Shader: {fileID: -6465566751694194690, guid: 823f6b206953b674a9a64f9e3ec57752, type: 3}
+  m_Shader: {fileID: -6465566751694194690, guid: 823f6b206953b674a9a64f9e3ec57752,
+    type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
@@ -22,7 +23,6 @@ Material:
   - _SURFACE_FOAM_SINGLE
   - _TRANSLUCENCY
   - _UNLIT
-  - _WAVES
   m_InvalidKeywords:
   - ADVANCED_LIGHTING
   - _CROSSPAN_INTERSECTION
@@ -122,7 +122,8 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _WaveProfile:
-        m_Texture: {fileID: 5393152077581806659, guid: 343e9ebae18bc0f48811edac300d64d0, type: 2}
+        m_Texture: {fileID: 5393152077581806659, guid: 343e9ebae18bc0f48811edac300d64d0,
+          type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _texcoord:
@@ -168,10 +169,10 @@ Material:
     - _Cutoff: 0.5
     - _Depth: 5.01
     - _DepthExp: 1
-    - _DepthHorizontal: 0.01
+    - _DepthHorizontal: 4.86
     - _DepthMode: 0
     - _DepthTexture: 1
-    - _DepthVertical: 7.8
+    - _DepthVertical: 2.39
     - _DisableDepthTexture: 0
     - _DistanceFoamTiling: 0.2
     - _DistanceNormalsOn: 0
@@ -187,6 +188,7 @@ Material:
     - _FoamBubblesSpread: 1
     - _FoamBubblesStrength: 0
     - _FoamClipping: 0.999
+    - _FoamClippingDynamic: 0
     - _FoamDistanceOn: 0
     - _FoamDistortion: 0
     - _FoamOn: 1
@@ -241,6 +243,7 @@ Material:
     - _PlanarReflectionsParams: 0
     - _PointSpotLightReflectionDistortion: 0.5
     - _PointSpotLightReflectionExp: 64
+    - _PointSpotLightReflectionSharp: 0
     - _PointSpotLightReflectionSize: 0
     - _PointSpotLightReflectionStrength: 10
     - _QueueOffset: 0
@@ -286,6 +289,7 @@ Material:
     - _SrcBlend: 1
     - _SunReflectionDistortion: 1.08
     - _SunReflectionPerturbance: 0.548
+    - _SunReflectionSharp: 0
     - _SunReflectionSize: 0.929
     - _SunReflectionStrength: 4
     - _Surface: 0
@@ -302,6 +306,7 @@ Material:
     - _TranslucencyReflectionMask: 0
     - _TranslucencyStrength: 1
     - _TranslucencyStrengthDirect: 0.05
+    - _UnderwaterReflectionStrength: 0.5
     - _UnderwaterRefractionOffset: 0.2
     - _UnderwaterSurfaceSmoothness: 0.8
     - _VertexColorFoam: 0
@@ -314,14 +319,14 @@ Material:
     - _WaveNormalStr: 0
     - _WaveSpeed: 1
     - _WaveSteepness: 0
-    - _WaveTint: 0.022
-    - _WavesOn: 1
+    - _WaveTint: 0.1
+    - _WavesOn: 0
     - _WorkflowMode: 1
     - _WorldSpaceUV: 1
     - _ZClip: 0
     - _ZWrite: 0
     m_Colors:
-    - _BaseColor: {r: 0.092570655, g: 0.22106457, b: 0.92398417, a: 1}
+    - _BaseColor: {r: 0.054901958, g: 0.54024667, b: 0.78431374, a: 1}
     - _Color: {r: 0.5, g: 0.5, b: 0.5, a: 1}
     - _DepthMapBounds: {r: -402.3, g: -459.43, b: 0.0012693577, a: 0}
     - _Direction: {r: 1, g: 1, b: 0, a: 0}
@@ -331,11 +336,11 @@ Material:
     - _FoamColor: {r: 1, g: 1, b: 1, a: 0.53333336}
     - _FoamCrestMinMaxHeight: {r: 1.9999995, g: 3, b: 0, a: 0}
     - _FoamTiling: {r: 0.11, g: 0.11, b: 0, a: 0}
-    - _HorizonColor: {r: 0, g: 0.17834568, b: 1, a: 1}
+    - _HorizonColor: {r: 0, g: 0.39235067, b: 1, a: 1}
     - _IntersectionColor: {r: 1, g: 1, b: 1, a: 1}
     - _NormalTiling: {r: 0.3, g: 0.3, b: 0, a: 0}
     - _RimColor: {r: 1, g: 1, b: 1, a: 1}
-    - _ShallowColor: {r: 0, g: 0.19043449, b: 0.2924528, a: 1}
+    - _ShallowColor: {r: 0.058823515, g: 0.2776305, b: 0.6431373, a: 1}
     - _SpecColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
     - _WaterColor: {r: 0.21176466, g: 0.6745098, b: 1, a: 1}
     - _WaterShallowColor: {r: 0, g: 0.9394503, b: 1, a: 1}

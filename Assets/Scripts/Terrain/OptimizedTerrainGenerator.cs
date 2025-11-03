@@ -7,6 +7,7 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     [Header("World Settings")]
     [SerializeField] private int worldSizeInChunks = 10;
     public int chunkSize = 32;
+    [SerializeField] private float mapSize = 320f;
     
     [Header("Noise Settings")]
     [SerializeField] private float noiseScale = 0.03f;
@@ -16,10 +17,23 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     [SerializeField] private float persistance = 0.5f;
     [SerializeField] private int seed = 0;
     
+    [Header("Falloff Settings")]
+    [SerializeField] private bool useFalloff = true;
+    [SerializeField] private float falloffStrength = 3f; // 가장자리 감소 강도
+    [SerializeField] private float falloffShift = 2.2f; // 감소 시작 지점
+    
     [Header("Visual Settings")]
     [SerializeField] private Gradient terrainGradient;
     [SerializeField] private Material terrainMaterial;
     [SerializeField] private Texture2D baseTexture;
+
+    [Header("Grass")] 
+    [SerializeField] private bool GenerateGrass;
+    
+    [Header("Water Settings")]
+    [SerializeField] private bool enableWater = true;
+    [SerializeField] private Material waterMaterial;
+    [SerializeField] private float waterLevel = 0f;
     
     [Header("Optimization")]
     [SerializeField] private bool useMultithreading = true;
@@ -34,10 +48,15 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private float lastUpdateTime;
     private Vector2Int lastViewerChunk;
     private GrassGenerator grassGenerator;
+    private GameObject waterPlane;
+    
+
+    
+    // Falloff 맵 캐시
+    private float[,] falloffMap;
 
     private void Start()
     {
-        //viewer = Camera.main.transform;
         grassGenerator = GetComponent<GrassGenerator>();
         
         if (grassGenerator == null)
@@ -45,10 +64,23 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             Debug.LogWarning("GrassGenerator component not found! Grass will not be generated.");
         }
         
+        mapSize = worldSizeInChunks * chunkSize;
+        
+        // Falloff 맵 생성
+        if (useFalloff)
+        {
+            GenerateFalloffMap();
+        }
+        
         CreateGradientTexture();
         SetupMaterial();
         
         GenerateWorld();
+        
+        if (enableWater && waterMaterial != null)
+        {
+            CreateWaterPlane();
+        }
     }
 
     private void Update()
@@ -58,6 +90,86 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             UpdateVisibleChunks();
             lastUpdateTime = Time.time;
         }
+    }
+
+    // ★ Falloff 맵 생성
+    // ★ Falloff 맵 생성 (더 강력하게)
+    // ★ Falloff 맵 생성 (완전히 새로 작성)
+    private void GenerateFalloffMap()
+    {
+        int totalSize = worldSizeInChunks * chunkSize + 1;
+        falloffMap = new float[totalSize, totalSize];
+    
+        Debug.Log($"Generating falloff map: {totalSize}x{totalSize}");
+    
+        for (int y = 0; y < totalSize; y++)
+        {
+            for (int x = 0; x < totalSize; x++)
+            {
+                // 0~1 범위로 정규화 (중심이 0.5, 가장자리가 0 또는 1)
+                float xNorm = x / (float)(totalSize - 1);
+                float yNorm = y / (float)(totalSize - 1);
+            
+                // 중심으로부터의 거리 (0~1 범위, 중심이 0, 가장자리가 1)
+                float distX = Mathf.Abs(xNorm * 2 - 1); // 0~1
+                float distY = Mathf.Abs(yNorm * 2 - 1); // 0~1
+            
+                // 사각형 falloff (더 예측 가능)
+                float value = Mathf.Max(distX, distY);
+            
+                falloffMap[x, y] = Evaluate(value);
+            }
+        }
+    
+        // 디버그 출력
+        Debug.Log($"Falloff map complete.");
+        Debug.Log($"Center (should be ~0): {falloffMap[totalSize/2, totalSize/2]:F3}");
+        Debug.Log($"Edge (should be ~1): {falloffMap[0, 0]:F3}");
+        Debug.Log($"Mid (should be ~0.5): {falloffMap[totalSize/4, totalSize/2]:F3}");
+    }
+
+// ★ Falloff 곡선 (더 간단하고 강력하게)
+    private float Evaluate(float value)
+    {
+        // value는 0~1 (중심에서 가장자리로)
+    
+        // 방법 1: 간단한 제곱 (추천)
+        return Mathf.Pow(value, falloffStrength);
+    
+        // 방법 2: Smoothstep (더 부드러움)
+        // float t = Mathf.SmoothStep(0, 1, value);
+        // return Mathf.Pow(t, falloffStrength);
+    }
+
+    private void CreateWaterPlane()
+    {
+        if (waterPlane != null)
+        {
+            Destroy(waterPlane);
+        }
+
+        waterPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        waterPlane.name = "Water";
+        waterPlane.transform.parent = transform;
+        
+        waterPlane.transform.position = new Vector3(0, waterLevel, 0);
+        
+        float scale = mapSize * 10f;
+        waterPlane.transform.localScale = new Vector3(scale, 1, scale);
+        
+        MeshRenderer renderer = waterPlane.GetComponent<MeshRenderer>();
+        if (renderer != null)
+        {
+            renderer.material = waterMaterial;
+        }
+        
+        Collider collider = waterPlane.GetComponent<Collider>();
+        if (collider != null)
+        {
+            Destroy(collider);
+        }
+        
+        Debug.Log($"Water plane created at height {waterLevel} with size {mapSize}x{mapSize}");
     }
 
     private void CreateGradientTexture()
@@ -117,7 +229,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         int halfSize = worldSizeInChunks / 2;
         int totalChunks = worldSizeInChunks * worldSizeInChunks;
 
-        // 1단계: 청크 데이터 생성 (멀티스레드)
         LoadingUI.Instance?.UpdateProgress(0.1f, "Generating chunk data...");
 
         for (int x = -halfSize; x < halfSize; x++)
@@ -131,7 +242,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
         ChunkData[] results = await Task.WhenAll(tasks);
 
-        // 2단계: 메인 스레드에서 지형 메시 생성
         LoadingUI.Instance?.UpdateProgress(0.3f, "Creating terrain meshes...");
 
         int processedChunks = 0;
@@ -151,19 +261,19 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
         UpdateMaterialHeightBounds();
 
-        // 3단계: 모든 지형이 완성된 후 풀 생성
-        LoadingUI.Instance?.UpdateProgress(0.7f, "Generating grass...");
-        
-        if (grassGenerator != null)
+        if (GenerateGrass)
         {
-            await GenerateAllGrass();
-            
-            // ★★★ 중요: 모든 풀 데이터를 GrassComputeScript에 적용 ★★★
-            grassGenerator.ApplyAllGrass();
-        }
+            LoadingUI.Instance?.UpdateProgress(0.7f, "Generating grass...");
+        
+            if (grassGenerator != null)
+            {
+                await GenerateAllGrass();
+                grassGenerator.ApplyAllGrass();
+            }
 
-        LoadingUI.Instance?.UpdateProgress(1f, "Complete!");
-        await Task.Delay(300);
+            LoadingUI.Instance?.UpdateProgress(1f, "Complete!");
+            await Task.Delay(300);    
+        }
     }
 
     private void GenerateWorldSingleThreaded()
@@ -174,7 +284,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
         LoadingUI.Instance?.UpdateProgress(0.1f, "Generating terrain...");
 
-        // 1단계: 지형 생성
         for (int x = -halfSize; x < halfSize; x++)
         {
             for (int z = -halfSize; z < halfSize; z++)
@@ -191,14 +300,11 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
         UpdateMaterialHeightBounds();
 
-        // 2단계: 풀 생성
         LoadingUI.Instance?.UpdateProgress(0.7f, "Generating grass...");
         
         if (grassGenerator != null)
         {
             GenerateAllGrassSync();
-            
-            // ★★★ 중요: 모든 풀 데이터를 GrassComputeScript에 적용 ★★★
             grassGenerator.ApplyAllGrass();
         }
 
@@ -279,7 +385,9 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         float minHeight = float.MaxValue;
         float maxHeight = float.MinValue;
 
-        // 버텍스 생성
+        // 월드 중심 계산
+        int halfWorldSize = (worldSizeInChunks * chunkSize) / 2;
+        
         int vertexIndex = 0;
         for (int z = 0; z <= chunkSize; z++)
         {
@@ -287,8 +395,37 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             {
                 float height = CalculateHeight(x + offset.x, z + offset.y, octaveOffsets);
                 
+                // ★ Falloff 적용
+                if (useFalloff && falloffMap != null)
+                {
+                    // 로컬 좌표를 월드 좌표로 변환 (맵 중심이 0,0)
+                    float worldX = x + offset.x;
+                    float worldZ = z + offset.y;
+                    
+                    // Falloff 맵 인덱스로 변환 (0 ~ totalSize)
+                    int falloffX = Mathf.RoundToInt(worldX + halfWorldSize);
+                    int falloffZ = Mathf.RoundToInt(worldZ + halfWorldSize);
+                    
+                    int totalSize = worldSizeInChunks * chunkSize + 1;
+                    
+                    // 범위 체크
+                    if (falloffX >= 0 && falloffX < totalSize && falloffZ >= 0 && falloffZ < totalSize)
+                    {
+                        float falloffValue = falloffMap[falloffX, falloffZ];
+                        
+                        height = Mathf.Lerp(height, -heightMultiplier * 1.5f, falloffValue);
+                        
+                    }
+                    else
+                    {
+                        // 범위 밖이면 강제로 아래로
+                        height = -heightMultiplier;
+                    }
+                }
+                
                 data.vertices[vertexIndex] = new Vector3(x, height, z);
                 data.heightMap[x, z] = height;
+                data.uvs[vertexIndex] = new Vector2((float)x / chunkSize, (float)z / chunkSize);
 
                 if (height < minHeight) minHeight = height;
                 if (height > maxHeight) maxHeight = height;
@@ -364,9 +501,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     
         activeChunks[data.chunkCoord] = chunk;
         chunkDataCache[data.chunkCoord] = data;
-    
-        // 개별 청크 풀 생성은 GenerateAllGrass에서 일괄 처리
-        // generateGrass 파라미터는 더 이상 사용하지 않음
     }
 
     private TerrainChunk GetChunkFromPool()
@@ -439,5 +573,11 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(viewer.position, viewDistance);
+        
+        if (enableWater)
+        {
+            Gizmos.color = new Color(0, 0.5f, 1f, 0.3f);
+            Gizmos.DrawWireCube(new Vector3(0, waterLevel, 0), new Vector3(mapSize, 0.1f, mapSize));
+        }
     }
 }
