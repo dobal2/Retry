@@ -121,6 +121,41 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &106087508
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 106087509}
+  m_Layer: 5
+  m_Name: AnchorBoxContainer
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &106087509
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 106087508}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1378774906}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &148194375
 GameObject:
   m_ObjectHideFlags: 0
@@ -1689,6 +1724,53 @@ MonoBehaviour:
   blendDistance: 0
   weight: 1
   sharedProfile: {fileID: 11400000, guid: bc759751acd628240912e805894ab205, type: 2}
+--- !u!21 &858640843
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Grass(Clone)
+  m_Shader: {fileID: -6465566751694194690, guid: 2122091ccbbafff48bdc930e3b94de8c,
+    type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses:
+  - MOTIONVECTORS
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Blend: 1
+    - _BlendMult: 1
+    - _BlendOff: 0
+    - _QueueControl: 0
+    - _QueueOffset: 0
+    m_Colors: []
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!1 &879861515
 GameObject:
   m_ObjectHideFlags: 0
@@ -2039,6 +2121,54 @@ NavMeshObstacle:
   m_CarveOnlyStationary: 1
   m_Center: {x: 0, y: 0, z: 0}
   m_TimeToStationary: 0
+--- !u!1 &1316224615
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1316224616}
+  - component: {fileID: 1316224617}
+  m_Layer: 0
+  m_Name: AnchorBoxManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1316224616
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316224615}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1316224617
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1316224615}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8150bac551f5f7c4cb41f11dbb256a38, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  anchorBoxCanvas: {fileID: 1378774905}
+  uiContainer: {fileID: 106087509}
+  textTemplate: {fileID: 8158749301063564623, guid: 0425b384cd96ae64a8156514d15a818d,
+    type: 3}
 --- !u!1 &1335255562
 GameObject:
   m_ObjectHideFlags: 0
@@ -2319,8 +2449,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   worldSizeInChunks: 20
-  chunkSize: 30
-  mapSize: 3000
+  chunkSize: 20
+  mapSize: 30000
   noiseScale: 0.01
   heightMultiplier: 3
   octavesCount: 3
@@ -2365,7 +2495,7 @@ MonoBehaviour:
   GenerateGrass: 1
   enableWater: 1
   waterMaterial: {fileID: 2100000, guid: f957e7fbdbadc344a9cc0f610776e7fc, type: 2}
-  waterLevel: -2.6
+  waterLevel: -2.65
   useMultithreading: 1
   viewDistance: 500
   updateInterval: 0.2
@@ -2543,6 +2673,7 @@ RectTransform:
   - {fileID: 1050973815}
   - {fileID: 232163036}
   - {fileID: 879861516}
+  - {fileID: 106087509}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2746,6 +2877,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 1701390311}
+    - targetCorrespondingSourceObject: {fileID: 9077088082737754624, guid: 7c043f7492495554faa80a5c0b4eb639,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1701390318}
   m_SourcePrefab: {fileID: 100100000, guid: 7c043f7492495554faa80a5c0b4eb639, type: 3}
 --- !u!1 &1614894554
 GameObject:
@@ -5064,7 +5199,7 @@ MonoBehaviour:
     normal: {x: 0, y: 1, z: 4.7098787e-18}
     length: {x: 0.2, y: 0.2}
     color: {x: 1, y: 1, z: 1}
-  m_InstantiatedMaterial: {fileID: 2107722005}
+  m_InstantiatedMaterial: {fileID: 858640843}
 --- !u!4 &1679519195
 Transform:
   m_ObjectHideFlags: 0
@@ -5099,6 +5234,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   radius: 1.3
+--- !u!114 &1701390318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1701390304}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e1fec31011594647bcecd366ae578ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetType: 0
+  displayName: Enemy
+  alwaysShow: 1
+  boxColor: {r: 1, g: 0, b: 0, a: 1}
+  boxPadding: 10
+  lineThickness: 4
+  useCornerOnly: 1
+  cornerLength: 20
+  showName: 1
+  showDistance: 1
+  showHealthText: 1
+  fadeWithDistance: 1
+  maxVisibleDistance: 60
+  minVisibleDistance: 0.1
 --- !u!1 &1724706581
 GameObject:
   m_ObjectHideFlags: 0
@@ -6236,53 +6397,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2ab8353b5ebd32545867da143199a814, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!21 &2107722005
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: Grass(Clone)
-  m_Shader: {fileID: -6465566751694194690, guid: 2122091ccbbafff48bdc930e3b94de8c,
-    type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
-  m_InvalidKeywords: []
-  m_LightmapFlags: 4
-  m_EnableInstancingVariants: 1
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses:
-  - MOTIONVECTORS
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - unity_Lightmaps:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_LightmapsInd:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - unity_ShadowMasks:
-        m_Texture: {fileID: 0}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _Blend: 1
-    - _BlendMult: 1
-    - _BlendOff: 0
-    - _QueueControl: 0
-    - _QueueOffset: 0
-    m_Colors: []
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1001 &2660350658061534775
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6435,3 +6549,4 @@ SceneRoots:
   - {fileID: 2056858728}
   - {fileID: 1893815597}
   - {fileID: 1904900471}
+  - {fileID: 1316224616}

@@ -57,6 +57,16 @@ public class EnemyAI : MonoBehaviour,IDamageable
             Debug.LogError("Player not found!");
     }
 
+    public float GetHealth()
+    {
+        return currentHealth;
+    }
+    
+    public float GetMaxHealth()
+    {
+        return maxHealth;
+    }
+
     void Update()
     {
         if (isDead) return;
