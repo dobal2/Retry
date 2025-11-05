@@ -14,8 +14,9 @@ GameObject:
   - component: {fileID: 7623435649941394406}
   - component: {fileID: 5818654579431575015}
   - component: {fileID: 6446900394579092041}
-  - component: {fileID: 4246386895166879409}
-  m_Layer: 8
+  - component: {fileID: 9083746385311330122}
+  - component: {fileID: 7653718887971758706}
+  m_Layer: 16
   m_Name: Enemy
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -31,7 +32,7 @@ Transform:
   m_GameObject: {fileID: 9077088082737754624}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -33.56, y: 1.08, z: 0}
+  m_LocalPosition: {x: 52.25, y: 14.54, z: 8.443686}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -68,7 +69,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 4a56b78c0d6dc7a45a5fdca887cd36c6, type: 2}
+  - {fileID: 2100000, guid: 185a2b9a0c62d8b448bc266a24ba1a4e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -127,13 +128,28 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 3.5
   rotationSpeed: 5
-  stoppingDistance: 2
-  detectionRange: 15
+  stoppingDistance: 5
+  detectionRange: 99999
   obstacleDetectionDistance: 2
   avoidanceAngle: 45
   obstacleLayer:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 256
+  waterLayer:
+    serializedVersion: 2
+    m_Bits: 16
+  waterRayDistance: 20
+  canSwim: 1
+  entityType: 1
+  maxHealth: 5
+  currentHealth: 5
+  fadeOutDuration: 0.4
+  destroyDelay: 0
+  dropItem: {fileID: 4477868127934335147, guid: cd7b71c7ab0c0924cb131410269bc2a3,
+    type: 3}
+  dropForce: 5
+  dropUpwardForce: 3
+  dropRandomRadius: 2
 --- !u!54 &6446900394579092041
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -161,25 +177,48 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 80
   m_CollisionDetection: 0
---- !u!195 &4246386895166879409
-NavMeshAgent:
+--- !u!114 &9083746385311330122
+MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9077088082737754624}
   m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 0.5
-  m_Speed: 3.5
-  m_Acceleration: 8
-  avoidancePriority: 50
-  m_AngularSpeed: 120
-  m_StoppingDistance: 0
-  m_AutoTraverseOffMeshLink: 1
-  m_AutoBraking: 1
-  m_AutoRepath: 1
-  m_Height: 1
-  m_BaseOffset: 0
-  m_WalkableMask: 4294967295
-  m_ObstacleAvoidanceType: 4
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d03f64a71f10224ea5d45f3fc5e7d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  radius: 1.6
+--- !u!114 &7653718887971758706
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9077088082737754624}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e1fec31011594647bcecd366ae578ca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  targetType: 0
+  displayName: Enemy
+  alwaysShow: 1
+  boxColor: {r: 1, g: 0, b: 0, a: 1}
+  boxPadding: 10
+  lineThickness: 4
+  useCornerOnly: 1
+  cornerLength: 20
+  showName: 1
+  showDistance: 1
+  showHealthText: 1
+  fadeWithDistance: 1
+  maxTextVisibleDistance: 35
+  maxVisibleDistance: 100
+  minVisibleDistance: 2
+  checkOcclusion: 1
+  occlusionLayers:
+    serializedVersion: 2
+    m_Bits: 97063
+  raycastCount: 5

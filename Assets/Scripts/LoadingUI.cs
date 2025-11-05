@@ -24,6 +24,9 @@ public class LoadingUI : MonoBehaviour
         }
     }
 
+    // ★ 추가: 로딩 중인지 확인하는 프로퍼티
+    public bool IsLoading => loadingPanel != null && loadingPanel.activeSelf;
+
     private void Awake()
     {
         if (instance == null)

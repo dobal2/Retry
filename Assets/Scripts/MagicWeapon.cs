@@ -15,11 +15,11 @@ namespace InfimaGames.LowPolyShooterPack
 
         [Tooltip("Is this weapon automatic? If yes, then holding down the firing button will continuously fire.")]
         [SerializeField] 
-        private bool automatic = true;  // 👈 기본값을 true로 설정! 꾹 누르면 연속 발사됩니다!
+        private bool automatic = true;
         
         [Tooltip("How fast the projectiles are.")]
         [SerializeField]
-        private float projectileImpulse = 400.0f;
+        private float projectileSpeed = 400.0f;
 
         [Tooltip("Amount of shots this weapon can shoot in a minute.")]
         [SerializeField] 
@@ -168,7 +168,14 @@ namespace InfimaGames.LowPolyShooterPack
         public override int GetAmmunitionTotal() => 999;
 
         public override bool IsAutomatic() => automatic;
-        public override float GetRateOfFire() => roundsPerMinutes;
+        
+        // ★ 공격속도에 PlayerStats 적용!
+        public override float GetRateOfFire()
+        {
+            float baseRate = roundsPerMinutes;
+            float multiplier = PlayerStats.Instance.GetAttackSpeedMultiplier();
+            return baseRate * multiplier;
+        }
         
         // 항상 가득 찬 상태로 반환해서 재장전 시도를 막음
         public override bool IsFull() => true;
@@ -231,9 +238,17 @@ namespace InfimaGames.LowPolyShooterPack
                 
             //프로젝타일 생성 - spawnPoint.position에서 발사됩니다!
             GameObject projectile = Instantiate(prefabProjectile, spawnPoint.position, rotation);
-            //Add velocity to the projectile.
-            if (projectile.TryGetComponent<Rigidbody>(out var rb))
-                rb.linearVelocity = projectile.transform.forward * projectileImpulse;   
+            
+            // ★ PlayerStats에서 프로젝타일 크기 적용!
+            float sizeMultiplier = PlayerStats.Instance.GetProjectileSizeMultiplier();
+            projectile.transform.localScale *= sizeMultiplier;
+            
+
+            if (projectile.TryGetComponent<HS_ProjectileMover>(out var mover))
+            {
+                float speedMultiplier = PlayerStats.Instance.GetProjectileSpeedMultiplier();
+                mover.SetProjectileSpeed(projectileSpeed * speedMultiplier);
+            }
         }
 
         public override void FillAmmunition(int amount)

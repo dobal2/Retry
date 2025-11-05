@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 258cae6383ae0344ca9c5c66bef22af4
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 160160
+  packageName: Simple Crosshair Generator
+  packageVersion: 1.1
+  assetPath: Assets/Simple Crosshair Generator/Scripts/Example/Utility/DisableOnPlay.cs
+  uploadId: 557703

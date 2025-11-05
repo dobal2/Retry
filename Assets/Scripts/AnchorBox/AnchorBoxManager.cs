@@ -34,23 +34,25 @@ public class AnchorBoxManager : MonoBehaviour
         {
             GameObject canvasObj = new GameObject("AnchorBoxCanvas");
             canvasObj.transform.SetParent(transform);
-            
+        
             anchorBoxCanvas = canvasObj.AddComponent<Canvas>();
-            anchorBoxCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            anchorBoxCanvas.renderMode = RenderMode.ScreenSpaceCamera; // ★ Camera 모드
+            anchorBoxCanvas.worldCamera = Camera.main; // ★ 카메라 할당
+            anchorBoxCanvas.planeDistance = 10f; // ★ 카메라로부터의 거리 (조절 가능)
             anchorBoxCanvas.sortingOrder = 100;
-            
+        
             CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
-            
+        
             canvasObj.AddComponent<GraphicRaycaster>();
         }
-        
+    
         if (uiContainer == null)
         {
             GameObject containerObj = new GameObject("UIContainer");
             containerObj.transform.SetParent(anchorBoxCanvas.transform, false);
-            
+        
             uiContainer = containerObj.AddComponent<RectTransform>();
             uiContainer.anchorMin = Vector2.zero;
             uiContainer.anchorMax = Vector2.one;

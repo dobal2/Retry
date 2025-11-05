@@ -34,8 +34,14 @@ public class TargetAnchorBox : MonoBehaviour
     
     [Header("Distance Settings")]
     [SerializeField] private bool fadeWithDistance = true;
+    [SerializeField] private float maxTextVisibleDistance;
     [SerializeField] private float maxVisibleDistance = 100f;
     [SerializeField] private float minVisibleDistance = 2f;
+    
+    [Header("Occlusion Settings")]
+    [SerializeField] private bool checkOcclusion = true;
+    [SerializeField] private LayerMask occlusionLayers = -1;
+    [SerializeField] private int raycastCount = 3;
     
     private Camera mainCamera;
     private RectTransform anchorBoxUI;
@@ -48,6 +54,10 @@ public class TargetAnchorBox : MonoBehaviour
     private Collider targetCollider;
     private EnemyAI enemyAI;
     
+    // ★ 강제 알파값 (dissolve 시 사용)
+    private float forceAlpha = 1f;
+    private bool isForceAlphaActive = false;
+    
     private void Start()
     {
         mainCamera = Camera.main;
@@ -57,6 +67,68 @@ public class TargetAnchorBox : MonoBehaviour
         
         SetDefaultColorByType();
         AnchorBoxManager.Instance?.RegisterTarget(this);
+    }
+    
+    // ★ 엄격한 Occlusion 체크 (모든 지점이 보여야만 표시)
+    private bool IsVisibleFromCamera()
+    {
+        if (!checkOcclusion) return true;
+        if (targetCollider == null && targetRenderer == null) return true;
+
+        Bounds bounds;
+        if (targetRenderer != null)
+            bounds = targetRenderer.bounds;
+        else if (targetCollider != null)
+            bounds = targetCollider.bounds;
+        else
+            bounds = new Bounds(transform.position, Vector3.one);
+
+        // ★ 여러 지점 체크 (중심, 상단, 좌우 등)
+        Vector3[] checkPoints = new Vector3[raycastCount];
+        checkPoints[0] = bounds.center; // 중심
+    
+        if (raycastCount >= 2)
+            checkPoints[1] = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z); // 상단
+    
+        if (raycastCount >= 3)
+        {
+            checkPoints[2] = new Vector3(bounds.min.x, bounds.center.y, bounds.center.z); // 왼쪽
+        }
+    
+        if (raycastCount >= 4)
+        {
+            checkPoints[3] = new Vector3(bounds.max.x, bounds.center.y, bounds.center.z); // 오른쪽
+        }
+    
+        if (raycastCount >= 5)
+        {
+            checkPoints[4] = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z); // 하단
+        }
+
+        // ★★★ 모든 지점이 보여야만 true 반환 (하나라도 가려지면 숨김) ★★★
+        for (int i = 0; i < Mathf.Min(raycastCount, checkPoints.Length); i++)
+        {
+            Vector3 direction = checkPoints[i] - mainCamera.transform.position;
+            float distance = direction.magnitude;
+
+            if (Physics.Raycast(mainCamera.transform.position, direction.normalized, out RaycastHit hit, distance, occlusionLayers))
+            {
+                // ★ 자기 자신이나 자식 오브젝트에 맞은 경우는 OK
+                if (hit.transform == transform || hit.transform.IsChildOf(transform))
+                {
+                    continue; // 다음 지점 체크
+                }
+                else
+                {
+                    // ★ 다른 오브젝트에 가려짐 = 즉시 false 반환
+                    return false;
+                }
+            }
+            // 아무것도 안 맞음 = 해당 지점은 보임 (계속 체크)
+        }
+
+        // ★ 모든 지점이 통과했으면 true
+        return true;
     }
     
     private void SetDefaultColorByType()
@@ -86,8 +158,29 @@ public class TargetAnchorBox : MonoBehaviour
         }
     }
     
+    private void OnDisable()
+    {
+        if (anchorBoxUI != null)
+        {
+            anchorBoxUI.gameObject.SetActive(false);
+        }
+    }
+
+    private void OnEnable()
+    {
+        if (anchorBoxUI != null)
+        {
+            anchorBoxUI.gameObject.SetActive(true);
+        }
+    }
+
     private void OnDestroy()
     {
+        if (anchorBoxUI != null)
+        {
+            Destroy(anchorBoxUI.gameObject);
+        }
+    
         AnchorBoxManager.Instance?.UnregisterTarget(this);
     }
     
@@ -171,7 +264,6 @@ public class TargetAnchorBox : MonoBehaviour
         hpTextObj.name = "HPText";
         hpTextObj.transform.SetParent(anchorBoxUI, false);
     
-        // ★ healthText 변수 할당
         healthText = hpTextObj.GetComponent<TextMeshProUGUI>();
         healthText.color = boxColor;
         healthText.alignment = TextAlignmentOptions.Left;
@@ -189,6 +281,16 @@ public class TargetAnchorBox : MonoBehaviour
     {
         if (anchorBoxUI == null || mainCamera == null) return;
         
+        if (!gameObject.activeInHierarchy || this == null)
+        {
+            if (anchorBoxUI != null)
+            {
+                Destroy(anchorBoxUI.gameObject);
+                anchorBoxUI = null;
+            }
+            return;
+        }
+        
         UpdateAnchorBox();
     }
     
@@ -196,14 +298,12 @@ public class TargetAnchorBox : MonoBehaviour
     {
         float distance = Vector3.Distance(mainCamera.transform.position, transform.position);
         
-        // 거리 체크
         if (distance < minVisibleDistance || distance > maxVisibleDistance)
         {
             anchorBoxUI.gameObject.SetActive(false);
             return;
         }
         
-        // 카메라 뒤 체크
         Vector3 screenPos = mainCamera.WorldToScreenPoint(transform.position);
         if (screenPos.z < 0)
         {
@@ -211,7 +311,12 @@ public class TargetAnchorBox : MonoBehaviour
             return;
         }
         
-        // 화면 밖 체크
+        if (!IsVisibleFromCamera())
+        {
+            anchorBoxUI.gameObject.SetActive(false);
+            return;
+        }
+        
         if (screenPos.x < -100 || screenPos.x > Screen.width + 100 || 
             screenPos.y < -100 || screenPos.y > Screen.height + 100)
         {
@@ -221,40 +326,59 @@ public class TargetAnchorBox : MonoBehaviour
         
         anchorBoxUI.gameObject.SetActive(alwaysShow);
         
-        // 바운드 계산
         Bounds bounds = GetScreenBounds();
         
-        // 박스 크기 및 위치 설정
         Vector2 boxSize = new Vector2(bounds.size.x, bounds.size.y);
         anchorBoxUI.sizeDelta = boxSize;
         anchorBoxUI.anchoredPosition = new Vector2(bounds.center.x, bounds.center.y);
         
-        // 테두리 업데이트
         if (useCornerOnly)
             UpdateCornerLines(boxSize);
         else
             UpdateFullBorderLines(boxSize);
         
-        // 거리 업데이트
         if (distanceText != null)
         {
             distanceText.text = $"{distance:F0}m";
         }
         
-        // ★ HP 업데이트 (EnemyAI에서 가져오기)
         if (healthText != null && enemyAI != null)
         {
             float currentHealth = enemyAI.GetHealth();
-            
             healthText.text = $"HP: {Mathf.RoundToInt(currentHealth)}";
         }
         
-        // 거리에 따른 페이드
-        if (fadeWithDistance)
+        // ★ 알파 적용 (dissolve 시 강제 알파값 우선)
+        if (isForceAlphaActive)
         {
-            float alpha = 1f - Mathf.Clamp01((distance - minVisibleDistance) / (maxVisibleDistance - minVisibleDistance));
-            ApplyAlpha(alpha);
+            ApplyBorderAlpha(forceAlpha);
+            ApplyTextAlpha(forceAlpha);
         }
+        else if (fadeWithDistance)
+        {
+            float borderAlpha = 1f - Mathf.Clamp01((distance - minVisibleDistance) / (maxVisibleDistance - minVisibleDistance));
+            float textAlpha = 1f - Mathf.Clamp01((distance - minVisibleDistance) / (maxTextVisibleDistance - minVisibleDistance));
+            ApplyBorderAlpha(borderAlpha);
+            ApplyTextAlpha(textAlpha);
+        }
+    }
+    
+    /// <summary>
+    /// ★ 외부에서 UI 알파값 강제 설정 (dissolve 시 사용)
+    /// </summary>
+    public void SetUIAlpha(float alpha)
+    {
+        forceAlpha = Mathf.Clamp01(alpha);
+        isForceAlphaActive = true;
+    }
+    
+    /// <summary>
+    /// ★ 강제 알파 모드 해제 (일반 페이드 모드로 복귀)
+    /// </summary>
+    public void ResetUIAlpha()
+    {
+        isForceAlphaActive = false;
+        forceAlpha = 1f;
     }
     
     private Bounds GetScreenBounds()
@@ -310,25 +434,21 @@ public class TargetAnchorBox : MonoBehaviour
     
     private void UpdateFullBorderLines(Vector2 boxSize)
     {
-        // 상단
         borderLines[0].rectTransform.anchorMin = new Vector2(0, 1);
         borderLines[0].rectTransform.anchorMax = new Vector2(1, 1);
         borderLines[0].rectTransform.sizeDelta = new Vector2(0, lineThickness);
         borderLines[0].rectTransform.anchoredPosition = Vector2.zero;
         
-        // 하단
         borderLines[1].rectTransform.anchorMin = new Vector2(0, 0);
         borderLines[1].rectTransform.anchorMax = new Vector2(1, 0);
         borderLines[1].rectTransform.sizeDelta = new Vector2(0, lineThickness);
         borderLines[1].rectTransform.anchoredPosition = Vector2.zero;
         
-        // 좌측
         borderLines[2].rectTransform.anchorMin = new Vector2(0, 0);
         borderLines[2].rectTransform.anchorMax = new Vector2(0, 1);
         borderLines[2].rectTransform.sizeDelta = new Vector2(lineThickness, 0);
         borderLines[2].rectTransform.anchoredPosition = Vector2.zero;
         
-        // 우측
         borderLines[3].rectTransform.anchorMin = new Vector2(1, 0);
         borderLines[3].rectTransform.anchorMax = new Vector2(1, 1);
         borderLines[3].rectTransform.sizeDelta = new Vector2(lineThickness, 0);
@@ -340,19 +460,15 @@ public class TargetAnchorBox : MonoBehaviour
         float halfWidth = boxSize.x * 0.5f;
         float halfHeight = boxSize.y * 0.5f;
         
-        // 좌상단 모서리
         SetCornerLine(0, new Vector2(-halfWidth, halfHeight), cornerLength, lineThickness);
         SetCornerLine(1, new Vector2(-halfWidth, halfHeight), lineThickness, cornerLength);
         
-        // 우상단 모서리
         SetCornerLine(2, new Vector2(halfWidth - cornerLength, halfHeight), cornerLength, lineThickness);
         SetCornerLine(3, new Vector2(halfWidth, halfHeight), lineThickness, cornerLength);
         
-        // 좌하단 모서리
         SetCornerLine(4, new Vector2(-halfWidth, -halfHeight), cornerLength, lineThickness);
         SetCornerLine(5, new Vector2(-halfWidth, -halfHeight + cornerLength), lineThickness, cornerLength);
         
-        // 우하단 모서리
         SetCornerLine(6, new Vector2(halfWidth - cornerLength, -halfHeight), cornerLength, lineThickness);
         SetCornerLine(7, new Vector2(halfWidth, -halfHeight + cornerLength), lineThickness, cornerLength);
     }
@@ -367,7 +483,7 @@ public class TargetAnchorBox : MonoBehaviour
         rt.anchoredPosition = position;
     }
     
-    private void ApplyAlpha(float alpha)
+    private void ApplyBorderAlpha(float alpha)
     {
         Color color = boxColor;
         color.a = alpha;
@@ -376,7 +492,10 @@ public class TargetAnchorBox : MonoBehaviour
         {
             if (line != null) line.color = color;
         }
-        
+    }
+    
+    private void ApplyTextAlpha(float alpha)
+    {
         if (nameText != null)
         {
             Color textColor = nameText.color;
@@ -391,7 +510,6 @@ public class TargetAnchorBox : MonoBehaviour
             distanceText.color = textColor;
         }
         
-        // ★ HP 텍스트 페이드
         if (healthText != null)
         {
             Color textColor = healthText.color;

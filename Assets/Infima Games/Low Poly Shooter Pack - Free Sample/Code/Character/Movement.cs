@@ -48,6 +48,18 @@ namespace InfimaGames.LowPolyShooterPack
         [SerializeField] private ShakeData shakeData;
         [SerializeField] private CameraShaker cameraShaker;
 
+        [Header("Swimming Settings")]
+        [SerializeField, Tooltip("물 레이어")]
+        private LayerMask waterLayer;
+        [SerializeField, Tooltip("수영 속도")]
+        private float swimSpeed = 3.0f;
+        [SerializeField, Tooltip("수영 시 상승/하강 속도")]
+        private float swimVerticalSpeed = 2.0f;
+        [SerializeField, Tooltip("수면에서 점프하여 나갈 수 있는 힘")]
+        private float swimJumpForce = 8.0f;
+        [SerializeField, Tooltip("경사로로 물 밖으로 나갈 수 있는 최소 높이 (수면 기준)")]
+        private float exitWaterHeightThreshold = 0.3f;
+
         [Header("Landing Settings")]
         [SerializeField, Tooltip("착지 시 속도 감소 비율 (0~1)")]
         private float landingSpeedMultiplier = 0.3f;
@@ -56,7 +68,6 @@ namespace InfimaGames.LowPolyShooterPack
         [SerializeField, Tooltip("착지 판정 최소 낙하 속도 (양수로 입력)")]
         private float minFallSpeedForLanding = 5f;
         
-        [Header("Landing Settings")]
         [SerializeField, Tooltip("착지 효과를 위한 최소 공중 시간 (초)")]
         private float minAirborneTimeForEffect = 0.3f;
         [SerializeField, Tooltip("착지 효과가 발동되는 최대 경사각 (도)")]
@@ -97,32 +108,38 @@ namespace InfimaGames.LowPolyShooterPack
         private bool grounded;
         private bool jumpPressed;
         private bool canJump = true;
+        
+        private int currentJumpCount = 0;
+
+        private bool isSwimming = false;
+        private float waterSurfaceY = 0f;
+        private Collider currentWaterCollider;
+        
+        private bool isSwimJumping = false;
+        private float swimJumpTimer = 0f;
+        private const float swimJumpDuration = 0.5f;
 
         private CharacterBehaviour playerCharacter;
         private WeaponBehaviour equippedWeapon;
 
-        // 카메라 착지 효과
         private bool isLandingDipActive = false;
         private Vector3 originalCameraLocalPos;
         private Quaternion originalCameraLocalRot;
         private Coroutine landingDipCoroutine;
 
-        // 착지 후 속도 관련
         private float currentSpeedMultiplier = 1f;
         private Coroutine speedRecoveryCoroutine;
         
         [SerializeField] private float minImpactVelocity = 2f;
 
-        // 발소리 관련
         private int currentWalkStepIndex = 0;
         private int currentRunStepIndex = 0;
         private float stepTimer = 0f;
         private bool wasMovingLastFrame = false;
 
-        // ✅ 착지 판정 개선 변수들
         private float velocityBeforeLanding = 0f;
-        private bool wasGroundedLastFrame = true; // 이전 프레임에 지면에 있었는지
-        private float airborneTimer = 0f; // 공중에 있던 시간
+        private bool wasGroundedLastFrame = true;
+        private float airborneTimer = 0f;
 
         #endregion
 
@@ -141,27 +158,33 @@ namespace InfimaGames.LowPolyShooterPack
             audioSource = GetComponent<AudioSource>();
             audioSource.loop = false;
 
-            // 카메라 원래 위치 저장
             if (cameraTransform != null)
             {
                 originalCameraLocalPos = cameraTransform.localPosition;
                 originalCameraLocalRot = cameraTransform.localRotation;
             }
+
+
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            // 지면 레이어 체크
+            if (isSwimming)
+            {
+                CheckWaterExit();
+                return;
+            }
+
             if (((1 << collision.gameObject.layer) & groundLayer) == 0)
                 return;
 
             grounded = true;
             canJump = true;
+            
+            currentJumpCount = 0;
 
-            // ✅ 착지 순간의 속도 저장
             velocityBeforeLanding = rigidBody.linearVelocity.y;
 
-            // ✅ 이전 프레임에 공중에 있었고, 충분히 오래 공중에 있었을 때만 착지 판정
             if (!wasGroundedLastFrame && airborneTimer >= minAirborneTime)
             {
                 CheckAndTriggerLanding(collision);
@@ -174,17 +197,20 @@ namespace InfimaGames.LowPolyShooterPack
 
         private void OnCollisionStay(Collision collision)
         {
-            // 지면 레이어 체크
             if (((1 << collision.gameObject.layer) & groundLayer) == 0)
                 return;
 
             grounded = true;
             canJump = true;
+            
+            if (isSwimming)
+            {
+                CheckWaterExit();
+            }
         }
 
         private void OnCollisionExit(Collision collision)
         {
-            // 지면 레이어 체크
             if (((1 << collision.gameObject.layer) & groundLayer) == 0)
                 return;
 
@@ -193,7 +219,6 @@ namespace InfimaGames.LowPolyShooterPack
 
         private void CheckAndTriggerLanding(Collision collision)
         {
-            // ★ 공중 시간만 체크
             if (airborneTimer < minAirborneTimeForEffect)
             {
                 if (showLandingDebug)
@@ -203,7 +228,6 @@ namespace InfimaGames.LowPolyShooterPack
                 return;
             }
 
-            // ★ 경사각 체크
             float slopeAngle = 90f;
             if (collision.contactCount > 0)
             {
@@ -216,7 +240,6 @@ namespace InfimaGames.LowPolyShooterPack
                 }
             }
 
-            // 경사각이 너무 크면 착지 효과 무시
             if (slopeAngle > maxSlopeAngleForLanding)
             {
                 if (showLandingDebug)
@@ -226,7 +249,6 @@ namespace InfimaGames.LowPolyShooterPack
                 return;
             }
 
-            // ★ 조건 통과 - 착지 효과 발동!
             if (showLandingDebug)
             {
                 Debug.Log($"<color=green>[Landing] 착지 효과 발동! 공중시간: {airborneTimer:F2}초, 경사각: {slopeAngle:F1}°</color>");
@@ -236,16 +258,30 @@ namespace InfimaGames.LowPolyShooterPack
 
         protected override void FixedUpdate()
         {
-            MoveCharacter();
+            if (isSwimming)
+            {
+                SwimCharacter();
+                
+                if (isSwimJumping)
+                {
+                    swimJumpTimer -= Time.fixedDeltaTime;
+                    if (swimJumpTimer <= 0f)
+                    {
+                        isSwimJumping = false;
+                    }
+                }
+            }
+            else
+            {
+                MoveCharacter();
+            }
             
-            // ✅ 공중에 있으면 타이머 증가
-            if (!grounded)
+            if (!grounded && !isSwimming)
             {
                 airborneTimer += Time.fixedDeltaTime;
             }
             else
             {
-                // 지면에 있으면 타이머 리셋
                 airborneTimer = 0f;
             }
             
@@ -254,44 +290,134 @@ namespace InfimaGames.LowPolyShooterPack
         
         protected override void LateUpdate()
         {
-            // ✅ 이전 프레임 상태 저장 (다음 프레임 판정용)
             wasGroundedLastFrame = grounded;
             
-            // 점프 처리
-            if (jumpPressed && canJump && grounded)
+            if (jumpPressed && isSwimming)
+            {
+                PerformSwimJump();
+            }
+            else if (jumpPressed && !isSwimming && CanPerformJump())
+            {
                 PerformJump();
+            }
         }
 
         protected override void Update()
         {
             equippedWeapon = playerCharacter.GetInventory().GetEquipped();
-            PlayFootstepSounds();
+    
+            if (!isSwimming)
+            {
+                PlayFootstepSounds();
+            }
 
-            // Space 키 입력 체크
             if (Keyboard.current != null && Keyboard.current.spaceKey.wasPressedThisFrame)
                 jumpPressed = true;
+        }
+
+       
+
+        private void CheckWaterExit()
+        {
+            if (!isSwimming || currentWaterCollider == null)
+                return;
+
+            float playerY = transform.position.y;
+            
+            if (grounded && playerY > waterSurfaceY - exitWaterHeightThreshold)
+            {
+                ExitSwimmingMode();
+                Debug.Log($"<color=green>[Swimming] 경사로를 통해 물 밖으로 탈출! (높이: {playerY:F2})</color>");
+            }
+        }
+
+        private void ExitSwimmingMode()
+        {
+            if (!isSwimming) return;
+    
+            isSwimming = false;
+            isSwimJumping = false;
+            swimJumpTimer = 0f;
+            currentWaterCollider = null;
+            
+            // ★ 중력 다시 켜기
+            rigidBody.useGravity = true;
+            rigidBody.linearDamping = 0f;
+    
+            Vector3 vel = rigidBody.linearVelocity;
+            if (vel.y < 0)
+            {
+                vel.y = 0;
+            }
+            rigidBody.linearVelocity = vel;
+    
+            Debug.Log("<color=green>[Swimming] 수영 모드 비활성화! (중력 ON)</color>");
         }
         #endregion
 
         #region METHODS
+        
+        private bool CanPerformJump()
+        {
+            int maxJumps = PlayerStats.Instance.GetMaxJumpCount();
+            
+            if (currentJumpCount == 0)
+                return grounded && canJump;
+            
+            return currentJumpCount < maxJumps;
+        }
+        
         private void MoveCharacter()
         {
             Vector2 frameInput = playerCharacter.GetInputMovement();
             var movement = new Vector3(frameInput.x, 0.0f, frameInput.y);
 
-            // 속도 배율 적용
+            float speedMultiplier = PlayerStats.Instance.GetMoveSpeedMultiplier();
+            
             if (playerCharacter.IsRunning())
-                movement *= speedRunning * currentSpeedMultiplier;
+                movement *= speedRunning * currentSpeedMultiplier * speedMultiplier;
             else
-                movement *= speedWalking * currentSpeedMultiplier;
+                movement *= speedWalking * currentSpeedMultiplier * speedMultiplier;
 
             movement = transform.TransformDirection(movement);
 
-            // 수평속도 유지, y속도는 기존 그대로
             Vector3 vel = rigidBody.linearVelocity;
             vel.x = movement.x;
             vel.z = movement.z;
             rigidBody.linearVelocity = vel;
+        }
+
+        private void SwimCharacter()
+        {
+            Vector2 frameInput = playerCharacter.GetInputMovement();
+            var movement = new Vector3(frameInput.x, 0.0f, frameInput.y);
+
+            movement *= swimSpeed;
+            movement = transform.TransformDirection(movement);
+
+            Vector3 vel = rigidBody.linearVelocity;
+            vel.x = movement.x;
+            vel.z = movement.z;
+            
+            // ★ 점프 중이 아닐 때만 Y축 속도를 천천히 0으로
+            if (!isSwimJumping)
+            {
+                vel.y = Mathf.Lerp(vel.y, 0, Time.fixedDeltaTime * 3f);
+            }
+            
+            rigidBody.linearVelocity = vel;
+        }
+
+        private void PerformSwimJump()
+        {
+            Vector3 vel = rigidBody.linearVelocity;
+            vel.y = swimJumpForce;
+            rigidBody.linearVelocity = vel;
+            
+            isSwimJumping = true;
+            swimJumpTimer = swimJumpDuration;
+            
+            Debug.Log("<color=cyan>[Swimming] 수영 점프 실행!</color>");
         }
 
         private void PerformJump()
@@ -299,15 +425,21 @@ namespace InfimaGames.LowPolyShooterPack
             canJump = false;
             grounded = false;
 
-            // 수직 속도 초기화 후 점프력 적용
             Vector3 vel = rigidBody.linearVelocity;
             vel.y = 0;
             rigidBody.linearVelocity = vel;
 
-            rigidBody.AddForce(Vector3.up * jumpForce, ForceMode.VelocityChange);
+            float jumpMultiplier = PlayerStats.Instance.GetJumpForceMultiplier();
+            rigidBody.AddForce(Vector3.up * jumpForce * jumpMultiplier, ForceMode.VelocityChange);
             
-            // ✅ 점프 시작 시 공중 타이머 리셋
+            currentJumpCount++;
+            
             airborneTimer = 0f;
+            
+            if (showLandingDebug)
+            {
+                Debug.Log($"<color=cyan>[Jump] {currentJumpCount}단 점프 실행! (최대: {PlayerStats.Instance.GetMaxJumpCount()})</color>");
+            }
         }
 
         private void PlayFootstepSounds()
@@ -381,12 +513,10 @@ namespace InfimaGames.LowPolyShooterPack
         {
             PlayLandingSound();
 
-            // 속도 회복
             if (speedRecoveryCoroutine != null)
                 StopCoroutine(speedRecoveryCoroutine);
             speedRecoveryCoroutine = StartCoroutine(RecoverSpeedAfterLanding());
 
-            // 카메라 착지 효과
             if (cameraTransform != null)
             {
                 if (landingDipCoroutine != null)
@@ -417,7 +547,6 @@ namespace InfimaGames.LowPolyShooterPack
             isLandingDipActive = true;
             float elapsedTime = 0f;
 
-            // ★ 공중 시간에 비례한 기울기 계산 (최대 6도)
             float tiltRatio = Mathf.Clamp01(airborneTimer / maxAirTimeForTilt);
             float actualTiltAmount = maxLandingTiltAmount * tiltRatio;
     
@@ -426,7 +555,6 @@ namespace InfimaGames.LowPolyShooterPack
                 Debug.Log($"<color=cyan>[Landing Tilt]</color> 공중시간: {airborneTimer:F2}초, 기울기: {actualTiltAmount:F2}도");
             }
 
-            // 내려가는 애니메이션 (30%)
             float downDuration = landingDipDuration * 0.3f;
             while (elapsedTime < downDuration)
             {
@@ -440,7 +568,6 @@ namespace InfimaGames.LowPolyShooterPack
                 yield return null;
             }
 
-            // 올라오는 애니메이션 (70%)
             float upDuration = landingDipDuration * 0.7f;
             elapsedTime = 0f;
     
@@ -458,12 +585,40 @@ namespace InfimaGames.LowPolyShooterPack
                 yield return null;
             }
 
-            // 원위치
             cameraTransform.localRotation = originalCameraLocalRot;
     
             isLandingDipActive = false;
             landingDipCoroutine = null;
         }
+        
+        private void OnTriggerEnter(Collider other)
+        {
+            if (((1 << other.gameObject.layer) & waterLayer) != 0)
+            {
+                isSwimming = true;
+                currentWaterCollider = other;
+                waterSurfaceY = other.bounds.max.y;
+        
+                rigidBody.useGravity = false;
+                rigidBody.linearDamping = 3f;
+                
+                Vector3 vel = rigidBody.linearVelocity;
+                vel.y = 0;
+                rigidBody.linearVelocity = vel;
+        
+                Debug.Log($"<color=cyan>[Swimming] 수영 모드 활성화!</color>");
+            }
+        }
+
+        private void OnTriggerExit(Collider other)
+        {
+            if (((1 << other.gameObject.layer) & waterLayer) != 0)
+            {
+                ExitSwimmingMode();
+            }
+        }
         #endregion
     }
+    
+    
 }

@@ -173,6 +173,11 @@ public class HS_ProjectileMover : MonoBehaviour
         }
     }
     
+    public void SetProjectileSpeed(float speed)
+    {
+        this.speed = speed;
+    }
+    
     private void CheckTimeStopState()
     {
         bool shouldBeFrozen = TimeStopManager.Instance.ShouldBeFrozen(entityType);

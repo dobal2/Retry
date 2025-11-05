@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: 17a9c7722e760c749a4b7a9458767531
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 160160
+  packageName: Simple Crosshair Generator
+  packageVersion: 1.1
+  assetPath: Assets/Simple Crosshair Generator/Scripts/Example/SimpleCrosshairAPIExample.cs
+  uploadId: 557703

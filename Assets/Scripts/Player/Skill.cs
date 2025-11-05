@@ -57,7 +57,9 @@ public class Skill : MonoBehaviour
     
     [Header("Volumetric Fog")]
     [SerializeField] private Material volumetricFogMaterial;
-    [SerializeField] private float fogColorTransitionSpeed = 5f; 
+    [SerializeField] private float fogColorTransitionSpeed = 5f;
+
+    [SerializeField] private GameObject anchorBoxContainer;
     
     private Coroutine fogColorCoroutine;
 
@@ -69,6 +71,9 @@ public class Skill : MonoBehaviour
     private void Start()
     {
         // Post Processing 이펙트들 가져오기
+        if (volume == null)
+            volume = GameObject.FindWithTag("Volume").GetComponent<Volume>();
+        
         if (volume.profile.TryGet(out _colorAdjustments))
         {
             SetSaturation(normalSaturation);

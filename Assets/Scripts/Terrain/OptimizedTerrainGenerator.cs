@@ -151,24 +151,34 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         waterPlane = GameObject.CreatePrimitive(PrimitiveType.Plane);
         waterPlane.name = "Water";
         waterPlane.transform.parent = transform;
-        
+        waterPlane.layer = LayerMask.NameToLayer("Water");
+    
         waterPlane.transform.position = new Vector3(0, waterLevel, 0);
-        
+    
         float scale = mapSize * 10f;
         waterPlane.transform.localScale = new Vector3(scale, 1, scale);
-        
+    
         MeshRenderer renderer = waterPlane.GetComponent<MeshRenderer>();
         if (renderer != null)
         {
             renderer.material = waterMaterial;
         }
-        
-        Collider collider = waterPlane.GetComponent<Collider>();
-        if (collider != null)
+    
+        // ★ 기존 MeshCollider 제거
+        MeshCollider meshCollider = waterPlane.GetComponent<MeshCollider>();
+        if (meshCollider != null)
         {
-            Destroy(collider);
+            Destroy(meshCollider);
         }
-        
+    
+        // ★ BoxCollider 추가 (Trigger로 설정)
+        BoxCollider boxCollider = waterPlane.AddComponent<BoxCollider>();
+        boxCollider.isTrigger = true;
+    
+        // ★ BoxCollider 크기 조정 (Plane은 10x10 크기이므로 스케일에 맞춰 조정)
+        boxCollider.center = Vector3.zero;
+        boxCollider.size = new Vector3(10f, 0.1f, 10f); // 얇은 박스
+    
         Debug.Log($"Water plane created at height {waterLevel} with size {mapSize}x{mapSize}");
     }
 
@@ -203,8 +213,7 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private async void GenerateWorld()
     {
         LoadingUI.Instance?.ShowLoading("Generating Terrain...");
-        
-        Debug.Log("Starting terrain generation...");
+    
         System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         if (useMultithreading)
@@ -217,9 +226,16 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         }
 
         stopwatch.Stop();
-        Debug.Log($"Terrain generation completed in {stopwatch.ElapsedMilliseconds}ms");
-        
+    
+        await Task.Delay(500);
         LoadingUI.Instance?.HideLoading();
+        await Task.Delay(100);
+    
+        // ★★★ 이 부분이 있어야 함! ★★★
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnTerrainGenerationComplete();
+        }
     }
 
     private async Task GenerateWorldMultithreaded()

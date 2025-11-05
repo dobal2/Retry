@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 420a6ce58bd602d429ebfcdde9e0e36f
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 160160
+  packageName: Simple Crosshair Generator
+  packageVersion: 1.1
+  assetPath: Assets/Simple Crosshair Generator/Documentation/ScriptingAPI.pdf
+  uploadId: 557703
