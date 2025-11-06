@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-public class Skill : MonoBehaviour
+public class TimeStopSkill : MonoBehaviour
 {
     [Header("Post Processing")]
     [SerializeField] private Volume volume;

@@ -514,6 +514,7 @@ GameObject:
   - component: {fileID: 2442524506787979175}
   - component: {fileID: 7917471151398748355}
   - component: {fileID: 4187518083801446474}
+  - component: {fileID: -6857593619088398915}
   m_Layer: 10
   m_Name: Player
   m_TagString: Player
@@ -1185,6 +1186,21 @@ MonoBehaviour:
   jumpForceMultiplier: 1
   maxJumpCount: 1
   showDebugInfo: 0
+--- !u!114 &-6857593619088398915
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1066618479810269397}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2e0879ae8b610d943adc29bd54ddb224, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dashForce: 100
+  dashDuration: 0.2
+  cooldownTimer: 3
 --- !u!1 &1090301191379745484
 GameObject:
   m_ObjectHideFlags: 0
@@ -1747,7 +1763,7 @@ Transform:
   m_GameObject: {fileID: 2375047491425693229}
   serializedVersion: 2
   m_LocalRotation: {x: 0.6417178, y: 0.2349143, z: 0.72832584, w: 0.050548296}
-  m_LocalPosition: {x: -0.007, y: 1.134, z: -0.147}
+  m_LocalPosition: {x: -0.111, y: 0.923, z: -0.131}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

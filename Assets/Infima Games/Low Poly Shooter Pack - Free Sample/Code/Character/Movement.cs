@@ -89,6 +89,8 @@ namespace InfimaGames.LowPolyShooterPack
         [Header("Debug")]
         [SerializeField, Tooltip("착지 디버그 정보 표시")]
         private bool showLandingDebug = false;
+        
+        private bool isDashing = false;
 
         #endregion
 
@@ -255,6 +257,14 @@ namespace InfimaGames.LowPolyShooterPack
             }
             OnLanded();
         }
+        
+
+        public void SetDashing(bool dashing)
+        {
+            isDashing = dashing;
+        }
+
+        
 
         protected override void FixedUpdate()
         {
@@ -369,6 +379,8 @@ namespace InfimaGames.LowPolyShooterPack
         
         private void MoveCharacter()
         {
+            if (isDashing) return;
+            
             Vector2 frameInput = playerCharacter.GetInputMovement();
             var movement = new Vector3(frameInput.x, 0.0f, frameInput.y);
 
