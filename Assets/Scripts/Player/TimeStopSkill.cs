@@ -7,7 +7,7 @@ using UnityEngine.Rendering.Universal;
 public class TimeStopSkill : MonoBehaviour
 {
     [Header("Post Processing")]
-    [SerializeField] private Volume volume;
+    private Volume volume;
     private ColorAdjustments _colorAdjustments;
     private ChromaticAberration _chromaticAberration;
     private Vignette _vignette;

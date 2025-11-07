@@ -188,8 +188,8 @@ public class EnergyCore : MonoBehaviour
 
     void CollectItem()
     {
-        Debug.Log("[EnergyCore] Collected!");
-        Destroy(gameObject);
+        // Debug.Log("[EnergyCore] Collected!");
+        // Destroy(gameObject);
     }
     
     void OnDrawGizmos()

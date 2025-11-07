@@ -731,7 +731,7 @@ MonoBehaviour:
   jumpForce: 8
   groundLayer:
     serializedVersion: 2
-    m_Bits: 65793
+    m_Bits: 196865
   shakeData: {fileID: 11400000, guid: 2cb48f4added7784da2489f66d71b8e9, type: 2}
   cameraShaker: {fileID: 6369244619739246064}
   waterLayer:
@@ -1122,7 +1122,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97575d73789d6d54dbb8f3ef5a366351, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  volume: {fileID: 0}
   coolTime: 1
   timeStopDuration: 5
   normalSaturation: 30
@@ -1142,7 +1141,7 @@ MonoBehaviour:
   useChromaticAberration: 1
   maxChromaticIntensity: 1
   chromaticSpeed: 10
-  useVignette: 1
+  useVignette: 0
   maxVignetteIntensity: 0.5
   vignetteSpeed: 5
   shakeData: {fileID: 11400000, guid: 52f6e947b12a9a141960dcffe14b8979, type: 2}
@@ -1164,6 +1163,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96edc07ec7ceca2409ea860555532003, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  takeDamageShake: {fileID: 11400000, guid: aeadd0db02e7c52458509356173ad3e6, type: 2}
+  shaker: {fileID: 6369244619739246064}
+  damageEffectDuration: 1.3
+  maxVignetteIntensity: 0.5
+  damageEffectCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   died: 0
 --- !u!114 &4187518083801446474
 MonoBehaviour:
@@ -1180,6 +1207,7 @@ MonoBehaviour:
   maxHealth: 100
   currentHealth: 100
   attackSpeedMultiplier: 1
+  projectileDamage: 1
   projectileSpeedMultiplier: 1
   projectileSizeMultiplier: 1
   moveSpeedMultiplier: 1
@@ -1311,7 +1339,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &8098343644815115951
 Transform:
   m_ObjectHideFlags: 0

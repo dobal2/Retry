@@ -5,10 +5,11 @@ using UnityEngine;
 public class HS_ProjectileMover : MonoBehaviour
 {
     [Header("Damage")]
-    [SerializeField] private float damage = 25f;
+    private float baseDamage = 1f;
+    [SerializeField] private LayerMask damageableLayers; 
     
     [Header("Movement")]
-    [SerializeField] protected float speed = 15f;
+    [SerializeField] protected float baseSpeed = 15f;
     [SerializeField] protected float hitOffset = 0f;
     [SerializeField] protected bool UseFirePointRotation;
     [SerializeField] protected Vector3 rotationOffset = new Vector3(0, 0, 0);
@@ -46,8 +47,9 @@ public class HS_ProjectileMover : MonoBehaviour
     private float destroyTimer = 0f;
     private float destroyDuration = 5f;
     
-    // ✅ 트레일 생성을 위한 딜레이
     private bool allowFreezeCheck = false;
+    
+    private float FinalDamage => baseDamage * PlayerStats.Instance.GetProjectileDamage();
 
     protected virtual void Start()
     {
@@ -64,18 +66,15 @@ public class HS_ProjectileMover : MonoBehaviour
             StartCoroutine(ActivateHomingAfterDelay());
         }
     
-        // 타이머 초기화
         destroyTimer = 0f;
         destroyDuration = 5f;
     
-        // ✅ 시간 정지 중이면 즉시 Collider 비활성화
         if (TimeStopManager.Instance.ShouldBeFrozen(entityType))
         {
             if (col != null)
                 col.enabled = false;
         }
     
-        // 트레일이 생성될 수 있도록 잠깐 딜레이
         StartCoroutine(EnableFreezeCheckAfterDelay());
     
         startChecker = true;
@@ -92,7 +91,6 @@ public class HS_ProjectileMover : MonoBehaviour
             if (lightSourse != null)
                 lightSourse.enabled = true;
         
-            // ✅ 시간 정지 중이 아닐 때만 Collider 활성화
             if (!TimeStopManager.Instance.ShouldBeFrozen(entityType))
             {
                 col.enabled = true;
@@ -104,10 +102,8 @@ public class HS_ProjectileMover : MonoBehaviour
         
             rb.constraints = RigidbodyConstraints.None;
         
-            // 타이머 리셋
             destroyTimer = 0f;
         
-            // OnEnable에서도 딜레이 적용
             allowFreezeCheck = false;
             StartCoroutine(EnableFreezeCheckAfterDelay());
         
@@ -120,13 +116,9 @@ public class HS_ProjectileMover : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// 트레일이 생성될 시간을 주기 위한 딜레이
-    /// </summary>
     IEnumerator EnableFreezeCheckAfterDelay()
     {
         allowFreezeCheck = false;
-        // 2-3 프레임 대기 (트레일 초기화 시간)
         yield return null;
         yield return null;
         yield return null;
@@ -142,7 +134,6 @@ public class HS_ProjectileMover : MonoBehaviour
 
     protected virtual void FixedUpdate()
     {
-        // ✅ 트레일 생성 후에만 정지 체크
         if (allowFreezeCheck)
         {
             CheckTimeStopState();
@@ -153,12 +144,11 @@ public class HS_ProjectileMover : MonoBehaviour
             FindAndTrackTarget();
         }
         
-        if (speed != 0 && !isFrozen)
+        if (baseSpeed != 0 && !isFrozen)
         {
-            rb.linearVelocity = transform.forward * speed;      
+            rb.linearVelocity = transform.forward * baseSpeed;      
         }
         
-        // 시간 정지 중이 아닐 때만 타이머 증가
         if (!isFrozen)
         {
             destroyTimer += Time.fixedDeltaTime;
@@ -175,7 +165,7 @@ public class HS_ProjectileMover : MonoBehaviour
     
     public void SetProjectileSpeed(float speed)
     {
-        this.speed = speed;
+        this.baseSpeed = speed;
     }
     
     private void CheckTimeStopState()
@@ -206,13 +196,11 @@ public class HS_ProjectileMover : MonoBehaviour
             rb.isKinematic = true;
         }
 
-        // ✅ 충돌 비활성화
         if (col != null)
         {
             col.enabled = false;
         }
 
-        // 파티클 시뮬레이션 속도를 0으로
         if (projectilePS != null)
         {
             var main = projectilePS.main;
@@ -244,13 +232,11 @@ public class HS_ProjectileMover : MonoBehaviour
             rb.angularVelocity = frozenAngularVelocity;
         }
 
-        // ✅ 충돌 재활성화
         if (col != null)
         {
             col.enabled = true;
         }
 
-        // 시뮬레이션 속도 복구
         if (projectilePS != null)
         {
             var main = projectilePS.main;
@@ -309,16 +295,14 @@ public class HS_ProjectileMover : MonoBehaviour
     {
         if (isFrozen)
             return;
-        // 플레이어나 다른 총알과는 충돌 무시
+            
         if (collision.gameObject.CompareTag("Player") || collision.gameObject.CompareTag("Projectile"))
         {
             return;
         }
         
-        // 데미지 처리 추가
-        ApplyDamage(collision.gameObject);
+        ApplyExplosionDamage(collision.contacts[0].point);
         
-        // 충돌 후 처리
         rb.constraints = RigidbodyConstraints.FreezeAll;
         if (lightSourse != null)
             lightSourse.enabled = false;
@@ -361,7 +345,6 @@ public class HS_ProjectileMover : MonoBehaviour
             }
         }
         
-        // 충돌 후 파괴도 시간 정지 영향 받도록
         if (notDestroy)
             StartCoroutine(DisableTimerRealtime(hitPS != null ? hitPS.main.duration : 1f));
         else
@@ -375,16 +358,105 @@ public class HS_ProjectileMover : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 시간 정지를 고려한 Disable 타이머
-    /// </summary>
+    protected virtual void ApplyExplosionDamage(Vector3 explosionPoint)
+    {
+        float radius = 0;
+        if (col != null)
+        {
+            if (col is SphereCollider sphereCol)
+            {
+                radius = sphereCol.radius * Mathf.Max(transform.localScale.x, transform.localScale.y, transform.localScale.z);
+            }
+            else if (col is BoxCollider boxCol)
+            {
+                Vector3 size = boxCol.size;
+                radius = Mathf.Max(size.x, size.y, size.z) * Mathf.Max(transform.localScale.x, transform.localScale.y, transform.localScale.z) * 0.5f;
+            }
+            else if (col is CapsuleCollider capsuleCol)
+            {
+                radius = capsuleCol.radius * Mathf.Max(transform.localScale.x, transform.localScale.z);
+            }
+            else
+            {
+                radius = 1f;
+            }
+        }
+
+        Debug.Log($"Explosion at {explosionPoint} with radius {radius}");
+
+        Collider[] hitColliders = Physics.OverlapSphere(explosionPoint, radius, damageableLayers);
+        
+        HashSet<GameObject> damagedObjects = new HashSet<GameObject>();
+
+        foreach (Collider hitCol in hitColliders)
+        {
+            if (hitCol.gameObject == gameObject)
+                continue;
+
+            if (hitCol.CompareTag("Player") || hitCol.CompareTag("Projectile"))
+                continue;
+
+            GameObject rootObject = hitCol.transform.root.gameObject;
+            
+            if (damagedObjects.Contains(rootObject))
+                continue;
+
+            bool damageApplied = TryApplyDamageToObject(hitCol.gameObject);
+            
+            if (damageApplied)
+            {
+                damagedObjects.Add(rootObject);
+                Debug.Log($"Explosion damaged: {hitCol.gameObject.name}");
+            }
+        }
+
+        Debug.Log($"Explosion hit {damagedObjects.Count} targets");
+    }
+
+    protected virtual void ApplyDamage(GameObject hitObject)
+    {
+        TryApplyDamageToObject(hitObject);
+    }
+
+    protected virtual bool TryApplyDamageToObject(GameObject hitObject)
+    {
+        EnemyAI enemy = hitObject.GetComponent<EnemyAI>();
+        if (enemy != null)
+        {
+            enemy.TakeDamage(FinalDamage);
+            return true;
+        }
+
+        IDamageable damageable = hitObject.GetComponent<IDamageable>();
+        if (damageable != null)
+        {
+            damageable.TakeDamage(FinalDamage);
+            return true;
+        }
+
+        EnemyAI parentEnemy = hitObject.GetComponentInParent<EnemyAI>();
+        if (parentEnemy != null)
+        {
+            parentEnemy.TakeDamage(FinalDamage);
+            return true;
+        }
+
+        IDamageable parentDamageable = hitObject.GetComponentInParent<IDamageable>();
+        if (parentDamageable != null)
+        {
+            parentDamageable.TakeDamage(FinalDamage);
+            return true;
+        }
+
+        return false;
+    }
+
     IEnumerator DisableTimerRealtime(float duration)
     {
         float elapsed = 0f;
         
         while (elapsed < duration)
         {
-            // 시간 정지 중이 아닐 때만 시간 증가
             if (!isFrozen)
             {
                 elapsed += Time.deltaTime;
@@ -396,16 +468,12 @@ public class HS_ProjectileMover : MonoBehaviour
             gameObject.SetActive(false);
     }
 
-    /// <summary>
-    /// 시간 정지를 고려한 Destroy 타이머
-    /// </summary>
     IEnumerator DestroyAfterRealtime(float duration)
     {
         float elapsed = 0f;
         
         while (elapsed < duration)
         {
-            // 시간 정지 중이 아닐 때만 시간 증가
             if (!isFrozen)
             {
                 elapsed += Time.deltaTime;
@@ -415,45 +483,33 @@ public class HS_ProjectileMover : MonoBehaviour
         
         Destroy(gameObject);
     }
-
-    /// <summary>
-    /// 충돌한 오브젝트에 데미지 적용
-    /// </summary>
-    protected virtual void ApplyDamage(GameObject hitObject)
+    
+    private void OnDrawGizmosSelected()
     {
-        // EnemyAI 컴포넌트가 있는지 확인
-        EnemyAI enemy = hitObject.GetComponent<EnemyAI>();
-        if (enemy != null)
+        Gizmos.color = new Color(1f, 0.5f, 0f, 0.3f);
+            
+        float radius = 0;
+        if (col != null)
         {
-            enemy.TakeDamage(damage);
-            Debug.Log($"Projectile dealt {damage} damage to {hitObject.name}");
-            return;
+            if (col is SphereCollider sphereCol)
+            {
+                radius = sphereCol.radius * Mathf.Max(transform.localScale.x, transform.localScale.y, transform.localScale.z);
+            }
+            else if (col is BoxCollider boxCol)
+            {
+                Vector3 size = boxCol.size;
+                radius = Mathf.Max(size.x, size.y, size.z) * Mathf.Max(transform.localScale.x, transform.localScale.y, transform.localScale.z) * 0.5f;
+            }
+            else if (col is CapsuleCollider capsuleCol)
+            {
+                radius = capsuleCol.radius * Mathf.Max(transform.localScale.x, transform.localScale.z);
+            }
         }
-
-        // 다른 데미지 처리 시스템 (IDamageable 인터페이스)
-        IDamageable damageable = hitObject.GetComponent<IDamageable>();
-        if (damageable != null)
-        {
-            damageable.TakeDamage(damage);
-            Debug.Log($"Projectile dealt {damage} damage to {hitObject.name} via IDamageable");
-            return;
-        }
-
-        // 부모 오브젝트에서 찾기 (자식 콜라이더인 경우)
-        EnemyAI parentEnemy = hitObject.GetComponentInParent<EnemyAI>();
-        if (parentEnemy != null)
-        {
-            parentEnemy.TakeDamage(damage);
-            Debug.Log($"Projectile dealt {damage} damage to parent {parentEnemy.name}");
-            return;
-        }
+            
+        Gizmos.DrawWireSphere(transform.position, radius);
     }
 }
 
-/// <summary>
-/// 데미지를 받을 수 있는 오브젝트를 위한 인터페이스
-/// 다른 적이나 오브젝트에도 사용 가능
-/// </summary>
 public interface IDamageable
 {
     void TakeDamage(float damage);

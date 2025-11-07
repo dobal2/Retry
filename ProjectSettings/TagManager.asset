@@ -21,6 +21,7 @@ TagManager:
   - Projectile
   - Volume
   - EnemyProjectile
+  - TakeDamageVolume
   layers:
   - Default
   - TransparentFX
@@ -39,8 +40,8 @@ TagManager:
   - Invisible Wall
   - Projectile
   - Enemy
-  - 
-  - 
+  - Ground
+  - EnemyProjectile
   - 
   - 
   - 

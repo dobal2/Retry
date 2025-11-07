@@ -7,9 +7,12 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
 
 {
     [Header("Movement")]
-    [SerializeField] private float moveSpeed = 3.5f;
-    [SerializeField] private float rotationSpeed = 5f;
-    [SerializeField] private float stoppingDistance = 2f;
+    [SerializeField] protected float moveSpeed = 3.5f;
+    [SerializeField] protected float rotationSpeed = 5f;
+    [SerializeField] protected float stoppingDistance = 2f;
+    
+    [Header("Damage")]
+    [SerializeField] protected float damage = 1;
     
     [Header("Detection")]
     [SerializeField] protected float  detectionRange = 15f;
@@ -213,7 +216,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         }
     }
     
-    private void CheckTimeStopState()
+    protected void CheckTimeStopState()
     {
         bool shouldBeFrozen = TimeStopManager.Instance.ShouldBeFrozen(entityType);
 
@@ -267,15 +270,13 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         if (moveDirection != Vector3.zero)
         {
             Move();
-            anim.SetBool("isWalking",true);
         }
         else
         {
-            anim.SetBool("isWalking",false);
         }
     }
 
-    void CalculateMovement()
+    protected void CalculateMovement()
     {
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
         directionToPlayer.y = 0;
@@ -345,6 +346,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             rb.MoveRotation(newRotation);
         }
     }
+    
 
     public void TakeDamage(float damage)
     {
@@ -366,10 +368,10 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         
     }
     
-    protected virtual void Die() // ★ virtual로 변경
+    protected virtual void Die()
     {
         if (isDead) return;
-        
+    
         isDead = true;
         Debug.Log($"{gameObject.name} died!");
 
@@ -377,10 +379,15 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         rb.linearVelocity = Vector3.zero;
         rb.isKinematic = true;
 
-        // ★ 애니메이션 정지
         if (anim != null)
         {
             anim.SetBool("isWalking", false);
+        }
+
+        // ★ 콜라이더 끄기 전에 앵커박스에 신호 보내기!
+        if (anchorBox != null)
+        {
+            anchorBox.SetUIAlpha(0.99f); // 사망 시작 신호
         }
 
         DropItem();
@@ -396,13 +403,17 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         GameObject droppedItem = Instantiate(dropItem, dropPosition, Quaternion.identity);
     }
 
-    protected virtual IEnumerator FadeOutAndDestroy() // ★ virtual로 변경
+    protected virtual IEnumerator FadeOutAndDestroy()
     {
         float elapsedTime = 0f;
         float startAlpha = 0f;
         float targetAlpha = 1f;
 
-        // ★ 모든 콜라이더 끄기
+        // ★ 약간의 딜레이 후 콜라이더 끄기 (앵커박스가 Bounds 캐시할 시간 확보)
+        yield return null;
+        yield return null;
+
+        // ★ 이제 콜라이더 끄기
         Collider[] colliders = GetComponentsInChildren<Collider>();
         foreach (Collider col in colliders)
         {
@@ -413,11 +424,11 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         {
             elapsedTime += Time.deltaTime;
             float t = elapsedTime / fadeOutDuration;
-            
+        
             float currentAlpha = Mathf.Lerp(startAlpha, targetAlpha, t);
-            
+        
             SetTransparency(currentAlpha);
-            
+        
             if (anchorBox != null)
             {
                 anchorBox.SetUIAlpha(1f - currentAlpha);
@@ -429,6 +440,11 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         yield return new WaitForSeconds(destroyDelay);
 
         gameObject.SetActive(false);
+    }
+    
+    public float GetDamage()
+    {
+        return damage;
     }
     
     protected void SetTransparency(float transparency) // ★ protected로 변경

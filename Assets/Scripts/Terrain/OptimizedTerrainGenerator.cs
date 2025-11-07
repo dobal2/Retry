@@ -514,6 +514,8 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         chunk.transform.position = position;
         chunk.Initialize(data.chunkCoord, terrainMaterial);
         chunk.ApplyMeshData(data);
+        
+        chunk.gameObject.layer = LayerMask.NameToLayer("Ground");
     
         activeChunks[data.chunkCoord] = chunk;
         chunkDataCache[data.chunkCoord] = data;

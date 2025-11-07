@@ -16,36 +16,13 @@ public class SpiderAI : EnemyAI
     private float shootCurTime;
 
     [SerializeField] private float headLookYOffset;
-
-    private bool isBodyRotating = false; // 몸통이 회전 중인지
-
-    protected override void Update()
-    {
-        base.Update(); // 기본 AI 로직 실행
-
-        if (isDead || player == null) return;
-
-        // 거미 특화: 항상 플레이어 바라보기
-        if (!isFrozen)
-        {
-            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
-            if (distanceToPlayer <= detectionRange)
-            {
-                LookAtPlayer();
-            }
-        }
-
-        if (!isFrozen)
-        {
-            shootCurTime += Time.deltaTime;
-            if (shootCurTime >= shootCoolTime)
-            {
-                shootCurTime = 0;
-                Shoot();
-            }    
-        }
-        
-    }
+    
+    [Header("Retreat Settings")]
+    [SerializeField] private float retreatDelay = 0.3f; // 후퇴 딜레이 시간
+    
+    private bool isBodyRotating = false;
+    private bool isRetreating = false; // 현재 후퇴 중인지
+    private float retreatTimer = 0f; // 후퇴 딜레이 타이머
 
     void Shoot()
     {
@@ -54,13 +31,13 @@ public class SpiderAI : EnemyAI
         Quaternion rotation = Quaternion.LookRotation(playerDirection);
         
         GameObject newProjectile = Instantiate(projectilePrefab, shootPos.position, rotation);
+        newProjectile.GetComponent<EnemyProjectile>().SetDamage(damage);
     }
 
     void LookAtPlayer()
     {
         Vector3 directionToPlayer = (player.position + new Vector3(0,headLookYOffset,0) - transform.position).normalized;
 
-        // 1. 머리가 먼저 빠르게 회전 (Y축 포함, 위아래도 바라봄)
         if (headTransform != null)
         {
             Quaternion headTargetRotation = Quaternion.LookRotation(directionToPlayer);
@@ -71,15 +48,12 @@ public class SpiderAI : EnemyAI
             );
         }
 
-        // 2. 몸통 회전 판단 (정지 상태일 때)
         if (moveDirection == Vector3.zero)
         {
-            directionToPlayer.y = 0; // 몸통은 Y축 제외하고 회전
+            directionToPlayer.y = 0;
             
-            // 현재 몸통 방향과 플레이어 방향의 각도 차이 계산
             float angleDifference = Vector3.Angle(transform.forward, directionToPlayer);
             
-            // 각도 차이가 임계값보다 크면 몸통 회전
             if (angleDifference > bodyRotationThreshold)
             {
                 isBodyRotating = true;
@@ -103,18 +77,88 @@ public class SpiderAI : EnemyAI
 
     protected override void Move()
     {
-        base.Move(); // 기본 이동 실행
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+
+        if (distanceToPlayer > stoppingDistance)
+        {
+            // 앞으로 이동 중이면 후퇴 타이머 리셋
+            isRetreating = false;
+            retreatTimer = 0f;
+            
+            Vector3 newPosition = rb.position + moveDirection * (moveSpeed * Time.fixedDeltaTime);
+            rb.MovePosition(newPosition);
+        }
+        else if(distanceToPlayer < stoppingDistance)
+        {
+            // 후퇴 딜레이 처리
+            if (!isRetreating)
+            {
+                retreatTimer += Time.fixedDeltaTime;
+                
+                if (retreatTimer >= retreatDelay)
+                {
+                    isRetreating = true;
+                }
+            }
+            
+            // 딜레이가 지나면 후퇴
+            if (isRetreating)
+            {
+                Vector3 backPosition = rb.position - moveDirection * (moveSpeed / 1.5f) * Time.fixedDeltaTime;
+                rb.MovePosition(backPosition);
+            }
+        }
+
+        if (moveDirection != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
+            Quaternion newRotation = Quaternion.Slerp(rb.rotation, targetRotation, rotationSpeed * Time.fixedDeltaTime);
+            rb.MoveRotation(newRotation);
+        }
     }
+    
+    protected override void Update()
+    {
+        if (isDead || player == null) return;
+    
+        CheckTimeStopState();
+
+        if (!isFrozen)
+        {
+            float distanceToPlayer = Vector3.Distance(transform.position, player.position);
+            
+            if (distanceToPlayer <= detectionRange)
+            {
+                CalculateMovement();
+                LookAtPlayer();
+            }
+            else
+            {
+                moveDirection = Vector3.zero;
+            }
+        }
+
+        if (!isFrozen)
+        {
+            shootCurTime += Time.deltaTime;
+            if (shootCurTime >= shootCoolTime)
+            {
+                shootCurTime = 0;
+                Shoot();
+            }    
+        }
+    }
+    
     
     protected override void FixedUpdate()
     {
         if (isDead) return;
-        if (isFrozen) return;
-
-        if (TimeStopManager.Instance.IsTimeStopped)
+        if (isFrozen)
         {
             anim.SetBool("isWalking", false);
+            return;
         }
+        
         
         if (moveDirection != Vector3.zero)
         {

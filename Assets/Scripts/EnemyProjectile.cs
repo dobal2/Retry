@@ -140,6 +140,11 @@ public class EnemyProjectile : MonoBehaviour
             }
         }
     }
+
+    public void SetDamage(float damage)
+    {
+        this.damage = damage;
+    }
     
     public void SetProjectileSpeed(float speed)
     {
@@ -246,7 +251,7 @@ public class EnemyProjectile : MonoBehaviour
         if (isFrozen)
             return;
         // 플레이어나 다른 총알과는 충돌 무시
-        if (collision.gameObject.CompareTag("EnemyProjectile"))
+        if (collision.gameObject.CompareTag("EnemyProjectile") || collision.gameObject.CompareTag("Enemy"))
         {
             return;
         }

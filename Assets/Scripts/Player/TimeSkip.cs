@@ -6,6 +6,8 @@ public class TimeSkip : MonoBehaviour
 {
     private Rigidbody rigid;
     private Movement movement;
+    private Camera mainCamera;
+    
     [SerializeField] private float dashForce = 20f;
     [SerializeField] private float dashDuration = 0.3f;
     [SerializeField] private float cooldownTimer;
@@ -15,6 +17,7 @@ public class TimeSkip : MonoBehaviour
     {
         rigid = GetComponent<Rigidbody>();
         movement = GetComponent<Movement>();
+        mainCamera = Camera.main;
     }
 
     void Update()
@@ -28,13 +31,16 @@ public class TimeSkip : MonoBehaviour
                 curTimer = 0;
             }
         }
-        
     }
     
     private System.Collections.IEnumerator DashCoroutine()
     {
         movement.SetDashing(true);
-        rigid.AddForce(transform.forward * dashForce, ForceMode.VelocityChange);
+        
+        Vector3 dashDirection = mainCamera.transform.forward;
+        dashDirection.Normalize();
+        
+        rigid.AddForce(dashDirection * dashForce, ForceMode.VelocityChange);
         
         yield return new WaitForSeconds(dashDuration);
         

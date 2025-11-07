@@ -29,7 +29,7 @@ public class TargetAnchorBox : MonoBehaviour
     
     [Header("Display Options")]
     [SerializeField] private bool showName = true;
-    [SerializeField] private bool showDistance = true;
+    [SerializeField] private bool showDamage = true;
     [SerializeField] private bool showHealthText = false;
     
     [Header("Distance Settings")]
@@ -43,20 +43,26 @@ public class TargetAnchorBox : MonoBehaviour
     [SerializeField] private LayerMask occlusionLayers = -1;
     [SerializeField] private int raycastCount = 3;
     
+    [Header("Camera View Settings")]
+    [SerializeField] private bool showOnlyInCameraView = false;
+    [SerializeField] private float cameraViewAngle = 60f;
+    
     private Camera mainCamera;
     private RectTransform anchorBoxUI;
     private Image[] borderLines;
     private TextMeshProUGUI nameText;
     private TextMeshProUGUI healthText;
-    private TextMeshProUGUI distanceText;
+    private TextMeshProUGUI damageText;
     
     private Renderer targetRenderer;
     private Collider targetCollider;
     private EnemyAI enemyAI;
     
-    // ★ 강제 알파값 (dissolve 시 사용)
     private float forceAlpha = 1f;
     private bool isForceAlphaActive = false;
+    
+    private Bounds lastValidBounds;
+    private bool isDying = false;
     
     private void Start()
     {
@@ -69,7 +75,16 @@ public class TargetAnchorBox : MonoBehaviour
         AnchorBoxManager.Instance?.RegisterTarget(this);
     }
     
-    // ★ 엄격한 Occlusion 체크 (모든 지점이 보여야만 표시)
+    private bool IsInCameraView()
+    {
+        if (!showOnlyInCameraView) return true;
+        
+        Vector3 directionToTarget = (transform.position - mainCamera.transform.position).normalized;
+        float angle = Vector3.Angle(mainCamera.transform.forward, directionToTarget);
+        
+        return angle < cameraViewAngle;
+    }
+    
     private bool IsVisibleFromCamera()
     {
         if (!checkOcclusion) return true;
@@ -83,29 +98,27 @@ public class TargetAnchorBox : MonoBehaviour
         else
             bounds = new Bounds(transform.position, Vector3.one);
 
-        // ★ 여러 지점 체크 (중심, 상단, 좌우 등)
         Vector3[] checkPoints = new Vector3[raycastCount];
-        checkPoints[0] = bounds.center; // 중심
+        checkPoints[0] = bounds.center;
     
         if (raycastCount >= 2)
-            checkPoints[1] = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z); // 상단
+            checkPoints[1] = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
     
         if (raycastCount >= 3)
         {
-            checkPoints[2] = new Vector3(bounds.min.x, bounds.center.y, bounds.center.z); // 왼쪽
+            checkPoints[2] = new Vector3(bounds.min.x, bounds.center.y, bounds.center.z);
         }
     
         if (raycastCount >= 4)
         {
-            checkPoints[3] = new Vector3(bounds.max.x, bounds.center.y, bounds.center.z); // 오른쪽
+            checkPoints[3] = new Vector3(bounds.max.x, bounds.center.y, bounds.center.z);
         }
     
         if (raycastCount >= 5)
         {
-            checkPoints[4] = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z); // 하단
+            checkPoints[4] = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
         }
 
-        // ★★★ 모든 지점이 보여야만 true 반환 (하나라도 가려지면 숨김) ★★★
         for (int i = 0; i < Mathf.Min(raycastCount, checkPoints.Length); i++)
         {
             Vector3 direction = checkPoints[i] - mainCamera.transform.position;
@@ -113,21 +126,17 @@ public class TargetAnchorBox : MonoBehaviour
 
             if (Physics.Raycast(mainCamera.transform.position, direction.normalized, out RaycastHit hit, distance, occlusionLayers))
             {
-                // ★ 자기 자신이나 자식 오브젝트에 맞은 경우는 OK
                 if (hit.transform == transform || hit.transform.IsChildOf(transform))
                 {
-                    continue; // 다음 지점 체크
+                    continue;
                 }
                 else
                 {
-                    // ★ 다른 오브젝트에 가려짐 = 즉시 false 반환
                     return false;
                 }
             }
-            // 아무것도 안 맞음 = 해당 지점은 보임 (계속 체크)
         }
 
-        // ★ 모든 지점이 통과했으면 true
         return true;
     }
     
@@ -172,6 +181,8 @@ public class TargetAnchorBox : MonoBehaviour
         {
             anchorBoxUI.gameObject.SetActive(true);
         }
+        
+        isDying = false;
     }
 
     private void OnDestroy()
@@ -199,8 +210,8 @@ public class TargetAnchorBox : MonoBehaviour
         if (showName)
             CreateNameText();
         
-        if (showDistance)
-            CreateDistanceText();
+        if (showDamage)
+            CreateDamageText();
         
         if (showHealthText)
             CreateHealthText();
@@ -240,22 +251,22 @@ public class TargetAnchorBox : MonoBehaviour
         textRect.anchoredPosition = new Vector2(0, 10);
     }
     
-    private void CreateDistanceText()
+    private void CreateDamageText()
     {
         GameObject textObj = Instantiate(AnchorBoxManager.Instance.textTemplate);
-        textObj.name = "DistanceText";
+        textObj.name = "DamageText";
         textObj.transform.SetParent(anchorBoxUI, false);
     
-        distanceText = textObj.GetComponent<TextMeshProUGUI>();
-        distanceText.color = boxColor;
-        distanceText.alignment = TextAlignmentOptions.Left;
+        damageText = textObj.GetComponent<TextMeshProUGUI>();
+        damageText.color = Color.red;
+        damageText.alignment = TextAlignmentOptions.Left;
     
         RectTransform textRect = textObj.GetComponent<RectTransform>();
         textRect.anchorMin = new Vector2(1f, 0.5f);
         textRect.anchorMax = new Vector2(1f, 0.5f);
         textRect.pivot = new Vector2(0f, 0.5f);
-        textRect.sizeDelta = new Vector2(100, 20);
-        textRect.anchoredPosition = new Vector2(10, showHealthText ? 10 : 0);
+        textRect.sizeDelta = new Vector2(300, 20);
+        textRect.anchoredPosition = new Vector2(10, showHealthText ? -20 : 0);
     }
     
     private void CreateHealthText()
@@ -311,6 +322,12 @@ public class TargetAnchorBox : MonoBehaviour
             return;
         }
         
+        if (!IsInCameraView())
+        {
+            anchorBoxUI.gameObject.SetActive(false);
+            return;
+        }
+        
         if (!IsVisibleFromCamera())
         {
             anchorBoxUI.gameObject.SetActive(false);
@@ -337,9 +354,10 @@ public class TargetAnchorBox : MonoBehaviour
         else
             UpdateFullBorderLines(boxSize);
         
-        if (distanceText != null)
+        if (damageText != null && enemyAI != null)
         {
-            distanceText.text = $"{distance:F0}m";
+            float enemyDamage = enemyAI.GetDamage();
+            damageText.text = $"Damage: {Mathf.RoundToInt(enemyDamage)}";
         }
         
         if (healthText != null && enemyAI != null)
@@ -348,7 +366,6 @@ public class TargetAnchorBox : MonoBehaviour
             healthText.text = $"HP: {Mathf.RoundToInt(currentHealth)}";
         }
         
-        // ★ 알파 적용 (dissolve 시 강제 알파값 우선)
         if (isForceAlphaActive)
         {
             ApplyBorderAlpha(forceAlpha);
@@ -363,40 +380,52 @@ public class TargetAnchorBox : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// ★ 외부에서 UI 알파값 강제 설정 (dissolve 시 사용)
-    /// </summary>
     public void SetUIAlpha(float alpha)
     {
         forceAlpha = Mathf.Clamp01(alpha);
         isForceAlphaActive = true;
+        
+        if (alpha < 1f && !isDying)
+        {
+            isDying = true;
+            if (targetCollider != null)
+                lastValidBounds = targetCollider.bounds;
+            else if (targetRenderer != null)
+                lastValidBounds = targetRenderer.bounds;
+            else
+                lastValidBounds = new Bounds(transform.position, Vector3.one);
+        }
     }
     
-    /// <summary>
-    /// ★ 강제 알파 모드 해제 (일반 페이드 모드로 복귀)
-    /// </summary>
     public void ResetUIAlpha()
     {
         isForceAlphaActive = false;
         forceAlpha = 1f;
+        isDying = false;
     }
     
     private Bounds GetScreenBounds()
     {
-        Bounds bounds = new Bounds();
-    
-        // ★ 콜라이더 크기 우선 사용
-        if (targetCollider != null)
+        Bounds bounds;
+        
+        if (isDying)
         {
-            bounds = targetCollider.bounds;
-        }
-        else if (targetRenderer != null)
-        {
-            bounds = targetRenderer.bounds;
+            bounds = lastValidBounds;
         }
         else
         {
-            bounds = new Bounds(transform.position, Vector3.one);
+            if (targetCollider != null)
+            {
+                bounds = targetCollider.bounds;
+            }
+            else if (targetRenderer != null)
+            {
+                bounds = targetRenderer.bounds;
+            }
+            else
+            {
+                bounds = new Bounds(transform.position, Vector3.one);
+            }
         }
     
         Vector3[] corners = new Vector3[8];
@@ -504,11 +533,11 @@ public class TargetAnchorBox : MonoBehaviour
             nameText.color = textColor;
         }
         
-        if (distanceText != null)
+        if (damageText != null)
         {
-            Color textColor = distanceText.color;
+            Color textColor = damageText.color;
             textColor.a = alpha;
-            distanceText.color = textColor;
+            damageText.color = textColor;
         }
         
         if (healthText != null)

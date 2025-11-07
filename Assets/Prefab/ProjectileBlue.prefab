@@ -4895,6 +4895,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   damage: 1
+  damageableLayers:
+    serializedVersion: 2
+    m_Bits: 65536
   speed: 25
   hitOffset: 0.1
   UseFirePointRotation: 1

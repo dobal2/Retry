@@ -317,7 +317,7 @@ MonoBehaviour:
   raycastDistance: 3
   groundLayer:
     serializedVersion: 2
-    m_Bits: 65335
+    m_Bits: 131072
   bobbingSpeed: 2
   bobbingAmount: 0.3
   hoverRotationSpeed: 100
