@@ -384,20 +384,21 @@ public class TargetAnchorBox : MonoBehaviour
     private Bounds GetScreenBounds()
     {
         Bounds bounds = new Bounds();
-        
-        if (targetRenderer != null)
-        {
-            bounds = targetRenderer.bounds;
-        }
-        else if (targetCollider != null)
+    
+        // ★ 콜라이더 크기 우선 사용
+        if (targetCollider != null)
         {
             bounds = targetCollider.bounds;
+        }
+        else if (targetRenderer != null)
+        {
+            bounds = targetRenderer.bounds;
         }
         else
         {
             bounds = new Bounds(transform.position, Vector3.one);
         }
-        
+    
         Vector3[] corners = new Vector3[8];
         corners[0] = bounds.min;
         corners[1] = new Vector3(bounds.min.x, bounds.min.y, bounds.max.z);
@@ -407,28 +408,28 @@ public class TargetAnchorBox : MonoBehaviour
         corners[5] = new Vector3(bounds.max.x, bounds.min.y, bounds.max.z);
         corners[6] = new Vector3(bounds.max.x, bounds.max.y, bounds.min.z);
         corners[7] = bounds.max;
-        
+    
         Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
         Vector2 max = new Vector2(float.MinValue, float.MinValue);
-        
+    
         foreach (Vector3 corner in corners)
         {
             Vector3 screenPoint = mainCamera.WorldToScreenPoint(corner);
-            
+        
             if (screenPoint.x < min.x) min.x = screenPoint.x;
             if (screenPoint.y < min.y) min.y = screenPoint.y;
             if (screenPoint.x > max.x) max.x = screenPoint.x;
             if (screenPoint.y > max.y) max.y = screenPoint.y;
         }
-        
+    
         min.x -= boxPadding * 0.5f;
         min.y -= boxPadding * 0.5f;
         max.x += boxPadding * 0.5f;
         max.y += boxPadding * 0.5f;
-        
+    
         Vector2 center = (min + max) * 0.5f;
         Vector2 size = max - min;
-        
+    
         return new Bounds(center, size);
     }
     

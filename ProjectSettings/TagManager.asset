@@ -20,6 +20,7 @@ TagManager:
   - CinemachineTarget
   - Projectile
   - Volume
+  - EnemyProjectile
   layers:
   - Default
   - TransparentFX

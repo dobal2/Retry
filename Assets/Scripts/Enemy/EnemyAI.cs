@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
 public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
@@ -20,8 +21,8 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     
     [Header("Water Settings")]
     [SerializeField] private LayerMask waterLayer;
-    [SerializeField] private float waterRayDistance = 8f; // 아래 대각선 레이 거리
-    [SerializeField] private bool canSwim = true; // 물 안에서 다닐 수 있는지
+    [SerializeField] private float waterRayDistance = 8f;
+    [SerializeField] private bool canSwim = true;
     
     [Header("Entity Type")]
     [SerializeField] private EntityType entityType = EntityType.Enemy;
@@ -31,14 +32,14 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     [SerializeField] private float currentHealth;
     
     [Header("Death Effect")]
-    [SerializeField] private float fadeOutDuration = 1.5f;
+    [SerializeField] protected float fadeOutDuration = 1.5f; // ★ protected로 변경
     [SerializeField] private float destroyDelay = 0.5f;
 
     [Header("Drop Item")] 
     [SerializeField] private GameObject dropItem;
-    [SerializeField] private float dropForce = 5f;
-    [SerializeField] private float dropUpwardForce = 3f;
-    [SerializeField] private float dropRandomRadius = 2f;
+
+    [Header("Material")] 
+    [SerializeField] private Material[] materials;
     
     private Vector3 frozenVelocity;
     private Vector3 frozenAngularVelocity;
@@ -49,14 +50,20 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     protected bool isDead = false;
     protected bool isFrozen;
     
-    // ★ 물 관련
     private bool isInWater = false;
     
-    private TargetAnchorBox anchorBox;
+    protected TargetAnchorBox anchorBox; // ★ protected로 변경
+    protected Animator anim; // ★ protected로 변경
+    
+    // ★ 여러 렌더러의 메테리얼을 각각 관리
+    private MeshRenderer[] meshRenderers;
+    private List<Material[]> allMaterialInstances = new List<Material[]>(); // 각 렌더러별 메테리얼 배열
     
     void Start()
     {
         rb = GetComponent<Rigidbody>();
+        anim = GetComponentInChildren<Animator>();
+        meshRenderers = GetComponentsInChildren<MeshRenderer>();
         
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         rb.useGravity = true;
@@ -70,10 +77,44 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             player = playerObj.transform;
         else
             Debug.LogError("Player not found!");
+        
+        // ★ 메테리얼 인스턴스화 (독립적인 메테리얼 생성)
+        InitializeMaterialInstances();
     }
     
+    // ★ 모든 렌더러의 메테리얼을 인스턴스화
+    void InitializeMaterialInstances()
+    {
+        allMaterialInstances.Clear();
+
+        if (meshRenderers != null && meshRenderers.Length > 0)
+        {
+            foreach (MeshRenderer renderer in meshRenderers)
+            {
+                if (renderer != null)
+                {
+                    // 각 렌더러의 메테리얼을 복사하여 인스턴스 생성
+                    Material[] originalMaterials = renderer.sharedMaterials;
+                    Material[] instanceMaterials = new Material[originalMaterials.Length];
+                    
+                    for (int i = 0; i < originalMaterials.Length; i++)
+                    {
+                        if (originalMaterials[i] != null)
+                        {
+                            instanceMaterials[i] = new Material(originalMaterials[i]);
+                        }
+                    }
+                    
+                    // 렌더러에 인스턴스화된 메테리얼 적용
+                    renderer.materials = instanceMaterials;
+                    
+                    // 리스트에 저장
+                    allMaterialInstances.Add(instanceMaterials);
+                }
+            }
+        }
+    }
     
-    // ★ 물 감지 (Trigger)
     private void OnTriggerEnter(Collider other)
     {
         if (((1 << other.gameObject.layer) & waterLayer) != 0)
@@ -82,7 +123,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             {
                 isInWater = true;
                 rb.useGravity = false;
-                rb.linearDamping = 2f; // 물 저항
+                rb.linearDamping = 2f;
                 Debug.Log($"<color=cyan>[Enemy] {gameObject.name} entered water!</color>");
             }
         }
@@ -116,6 +157,8 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             rb.linearDamping = 0f;
         }
     
+        // ★ 메테리얼 재인스턴스화 (풀링 시에도 독립적으로)
+        InitializeMaterialInstances();
         ResetTransparency();
         
         if (anchorBox != null)
@@ -126,10 +169,15 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
 
     void ResetTransparency()
     {
-        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-        if (meshRenderer != null && meshRenderer.material.HasProperty("_Transparency"))
+        foreach (Material[] materialArray in allMaterialInstances)
         {
-            meshRenderer.material.SetFloat("_Transparency", 0f);
+            foreach (Material mat in materialArray)
+            {
+                if (mat != null && mat.HasProperty("_Transparency"))
+                {
+                    mat.SetFloat("_Transparency", 0f);
+                }
+            }
         }
     }
 
@@ -210,7 +258,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         Debug.Log($"[Enemy] {gameObject.name} unfrozen!");
     }
 
-    void FixedUpdate()
+    protected virtual void FixedUpdate() // ★ virtual로 변경
     {
         if (isDead) return;
         if(isFrozen)
@@ -219,6 +267,11 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         if (moveDirection != Vector3.zero)
         {
             Move();
+            anim.SetBool("isWalking",true);
+        }
+        else
+        {
+            anim.SetBool("isWalking",false);
         }
     }
 
@@ -227,19 +280,15 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         Vector3 directionToPlayer = (player.position - transform.position).normalized;
         directionToPlayer.y = 0;
         
-        // ★ 물 안에 있지 않을 때만 물 체크 (물 안에서는 자유롭게 이동)
         if (!isInWater && !canSwim)
         {
-            // 플레이어 방향으로 가는 경로에 물이 있는지 체크
             if (IsWaterAhead(directionToPlayer))
             {
-                // 물이 있으면 멈춤
                 moveDirection = Vector3.zero;
                 return;
             }
         }
         
-        // 일반 장애물 감지
         if (Physics.Raycast(transform.position, directionToPlayer, obstacleDetectionDistance, obstacleLayer))
         {
             Vector3 avoidDirection = FindAvoidanceDirection(directionToPlayer);
@@ -251,16 +300,11 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         }
     }
 
-    // ★ 아래 대각선으로 긴 레이를 쏴서 물 감지
     bool IsWaterAhead(Vector3 direction)
     {
-        // 시작 위치 (적의 중심)
         Vector3 rayStart = transform.position + Vector3.up * 0.5f;
-        
-        // 아래 대각선 방향 (앞으로 가면서 아래로)
         Vector3 diagonalDown = (direction + Vector3.down * 0.5f).normalized;
         
-        // 긴 레이 발사
         if (Physics.Raycast(rayStart, diagonalDown, out RaycastHit hit, waterRayDistance, waterLayer))
         {
             Debug.DrawRay(rayStart, diagonalDown * waterRayDistance, Color.red, 0.1f);
@@ -319,11 +363,10 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
 
     void OnHit()
     {
-
         
     }
     
-    void Die()
+    protected virtual void Die() // ★ virtual로 변경
     {
         if (isDead) return;
         
@@ -333,6 +376,12 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         moveDirection = Vector3.zero;
         rb.linearVelocity = Vector3.zero;
         rb.isKinematic = true;
+
+        // ★ 애니메이션 정지
+        if (anim != null)
+        {
+            anim.SetBool("isWalking", false);
+        }
 
         DropItem();
 
@@ -347,11 +396,18 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         GameObject droppedItem = Instantiate(dropItem, dropPosition, Quaternion.identity);
     }
 
-    IEnumerator FadeOutAndDestroy()
+    protected virtual IEnumerator FadeOutAndDestroy() // ★ virtual로 변경
     {
         float elapsedTime = 0f;
         float startAlpha = 0f;
         float targetAlpha = 1f;
+
+        // ★ 모든 콜라이더 끄기
+        Collider[] colliders = GetComponentsInChildren<Collider>();
+        foreach (Collider col in colliders)
+        {
+            col.enabled = false;
+        }
 
         while (elapsedTime < fadeOutDuration)
         {
@@ -375,25 +431,43 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         gameObject.SetActive(false);
     }
     
-    void SetTransparency(float transparency)
+    protected void SetTransparency(float transparency) // ★ protected로 변경
     {
-        MeshRenderer meshRenderer = GetComponent<MeshRenderer>();
-        Material mat = meshRenderer.material;
-        
-        if (mat.HasProperty("_Transparency"))
+        // ★ 모든 렌더러의 모든 메테리얼에 적용
+        foreach (Material[] materialArray in allMaterialInstances)
         {
-            mat.SetFloat("_Transparency", transparency);
-        }
-        else
-        {
-            Debug.LogError("No TransparencyProperty");
+            foreach (Material material in materialArray)
+            {
+                if (material != null)
+                {
+                    if (material.HasProperty("_Transparency"))
+                    {
+                        material.SetFloat("_Transparency", transparency);
+                    }
+                }
+            }
         }
     }
-
     
     public float GetHealthPercentage()
     {
         return currentHealth / maxHealth;
+    }
+    
+    // ★ 메테리얼 인스턴스 메모리 정리
+    void OnDestroy()
+    {
+        foreach (Material[] materialArray in allMaterialInstances)
+        {
+            foreach (Material mat in materialArray)
+            {
+                if (mat != null)
+                {
+                    Destroy(mat);
+                }
+            }
+        }
+        allMaterialInstances.Clear();
     }
 
     void OnDrawGizmosSelected()
@@ -407,7 +481,6 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         Gizmos.color = Color.blue;
         Gizmos.DrawRay(transform.position, transform.forward * obstacleDetectionDistance);
         
-        // ★ 아래 대각선 물 감지 레이 시각화
         Gizmos.color = Color.cyan;
         Vector3 rayStart = transform.position + Vector3.up * 0.5f;
         Vector3 diagonalDown = (transform.forward + Vector3.down * 0.5f).normalized;
