@@ -119,9 +119,7 @@ public class HS_ProjectileMover : MonoBehaviour
     IEnumerator EnableFreezeCheckAfterDelay()
     {
         allowFreezeCheck = false;
-        yield return null;
-        yield return null;
-        yield return null;
+        yield return new WaitForSeconds(0.05f);
         allowFreezeCheck = true;
     }
 

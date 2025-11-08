@@ -16,6 +16,13 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float playerSpawnDelay = 0.5f;
     [SerializeField] private float enemySpawnDelay = 5f;
     
+    [Header("Camera Settings")]
+    [SerializeField] private Camera sceneCamera; // Scene에 있는 기본 카메라
+    [SerializeField] private bool autoDisableSceneCamera = true;
+
+    [Header("UI Settings")]
+    [SerializeField] private Canvas anchorBoxCanvas;
+    
     private GameObject spawnedPlayer;
     private bool isInitialized = false;
     
@@ -31,6 +38,12 @@ public class GameManager : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+        
+        // Scene Camera 자동 찾기
+        if (sceneCamera == null)
+        {
+            sceneCamera = Camera.main;
         }
     }
     
@@ -57,7 +70,6 @@ public class GameManager : MonoBehaviour
     
     IEnumerator ActivatePlayerAfterLoading()
     {
-        // ★ IsLoading 프로퍼티로 변경
         while (LoadingUI.Instance != null && LoadingUI.Instance.IsLoading)
         {
             yield return new WaitForSeconds(0.1f);
@@ -70,6 +82,12 @@ public class GameManager : MonoBehaviour
     
         Debug.Log("Activating player physics...");
         ActivatePlayer();
+        
+        // ★ Scene 카메라 끄고 플레이어 카메라 활성화
+        if (autoDisableSceneCamera)
+        {
+            SwitchToPlayerCamera();
+        }
     
         yield return new WaitForSeconds(enemySpawnDelay);
     
@@ -146,6 +164,75 @@ public class GameManager : MonoBehaviour
         }
     }
     
+    void SwitchToPlayerCamera()
+{
+    if (spawnedPlayer == null)
+    {
+        Debug.LogError("Player not spawned yet!");
+        return;
+    }
+    
+    // 플레이어 카메라 찾기
+    Camera playerCamera = spawnedPlayer.GetComponentInChildren<Camera>();
+    
+    if (playerCamera == null)
+    {
+        Debug.LogError("Player camera not found!");
+        return;
+    }
+    
+    // ★ UI Layer 렌더링 확인
+    if ((playerCamera.cullingMask & (1 << LayerMask.NameToLayer("UI"))) == 0)
+    {
+        Debug.LogWarning("Player camera doesn't render UI layer! Adding UI to culling mask...");
+        playerCamera.cullingMask |= (1 << LayerMask.NameToLayer("UI"));
+    }
+    
+    // Scene 카메라 끄기
+    if (sceneCamera != null)
+    {
+        sceneCamera.gameObject.SetActive(false);
+        Debug.Log($"Disabled scene camera: {sceneCamera.name}");
+    }
+    
+    // 플레이어 카메라 활성화
+    if (!playerCamera.enabled)
+    {
+        playerCamera.enabled = true;
+    }
+    
+    // ★ 모든 Canvas를 플레이어 카메라로 전환
+    Canvas[] allCanvases = FindObjectsOfType<Canvas>();
+    int assignedCount = 0;
+    
+    foreach (Canvas canvas in allCanvases)
+    {
+        // Screen Space - Camera 모드이거나 Scene Camera를 사용하던 Canvas들
+        if (canvas.renderMode == RenderMode.ScreenSpaceCamera || 
+            canvas.worldCamera == sceneCamera)
+        {
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = playerCamera;
+            canvas.planeDistance = 1f;
+            
+            assignedCount++;
+            Debug.Log($"✓ Assigned player camera to Canvas: {canvas.name}");
+        }
+    }
+    
+    // ★ AnchorBox Canvas 별도 확인 (혹시 못 찾았을 경우)
+    if (anchorBoxCanvas != null)
+    {
+        anchorBoxCanvas.renderMode = RenderMode.ScreenSpaceCamera;
+        anchorBoxCanvas.worldCamera = playerCamera;
+        anchorBoxCanvas.planeDistance = 1f;
+        Debug.Log($"✓ Explicitly assigned to AnchorBox Canvas");
+    }
+    
+    Debug.Log($"✓ Switched to player camera: {playerCamera.name}");
+    Debug.Log($"✓ Total {assignedCount} canvases updated");
+}
+    
     void StartEnemySpawning()
     {
         if (enemySpawner == null) return;
@@ -170,6 +257,18 @@ public class GameManager : MonoBehaviour
         if (enemySpawner != null)
         {
             enemySpawner.StopSpawning();
+        }
+        
+        // Scene 카메라 다시 켜기
+        if (sceneCamera != null)
+        {
+            sceneCamera.gameObject.SetActive(true);
+        }
+        
+        // AnchorBox Canvas 카메라를 Scene Camera로 되돌리기
+        if (anchorBoxCanvas != null && sceneCamera != null)
+        {
+            anchorBoxCanvas.worldCamera = sceneCamera;
         }
         
         if (spawnedPlayer != null)

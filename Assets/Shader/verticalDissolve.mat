@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Dissolve
-  m_Shader: {fileID: -6465566751694194690, guid: ee8fe7ac8128eb848866caca3a137de6,
+  m_Name: verticalDissolve
+  m_Shader: {fileID: -6465566751694194690, guid: a5abd222fca1496489a6a6811c41f15e,
     type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -39,18 +39,21 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _NoiseScale: 30
-    - _OutlineStroke: 0.0299
+    - _CullofHeight: 0.1
+    - _DissolveAmount: 1.5
+    - _EdgeWidth: 0.1
+    - _LineLength: 0.08
+    - _NoiseScale: 10
+    - _NoiseStrength: 1
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Transparency: 0
     m_Colors:
-    - _BaseColor: {r: 1, g: 0.42050022, b: 0, a: 0}
-    - _Color: {r: 0, g: 0, b: 0, a: 0}
-    - _OutlineColor: {r: 9.51876, g: 0, b: 0, a: 0}
+    - _BaseCol_or: {r: 0, g: 0, b: 0, a: 0}
+    - _DissolveColor: {r: 256, g: 32.603775, b: 32.603775, a: 0}
+    - _EdgeColor: {r: 4.937271, g: 0.11644506, b: 0.11644506, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
---- !u!114 &3277268169103036932
+--- !u!114 &7982343189917351105
 MonoBehaviour:
   m_ObjectHideFlags: 11
   m_CorrespondingSourceObject: {fileID: 0}

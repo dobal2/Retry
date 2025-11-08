@@ -24,8 +24,8 @@ MonoBehaviour:
   layerFading: 0100000000000000
   VertexColorSettings: 0
   VertexFade: 0
-  sizeWidth: 0.2
-  sizeLength: 0.2
+  sizeWidth: 1
+  sizeLength: 1
   adjustWidth: 0
   adjustLength: 0
   adjustWidthMax: 2
@@ -44,7 +44,7 @@ MonoBehaviour:
   paintMask:
     serializedVersion: 2
     m_Bits: 1
-  brushSize: 1
+  brushSize: 4
   brushFalloffSize: 0.8
   Flow: 0
   density: 1

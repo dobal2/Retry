@@ -1557,7 +1557,7 @@ MonoBehaviour:
   displayName: Spider
   alwaysShow: 1
   boxColor: {r: 1, g: 0, b: 0, a: 1}
-  boxPadding: 0
+  boxPadding: 30
   lineThickness: 4
   useCornerOnly: 0
   cornerLength: 20
@@ -1568,10 +1568,10 @@ MonoBehaviour:
   maxTextVisibleDistance: 30
   maxVisibleDistance: 100
   minVisibleDistance: 4
-  checkOcclusion: 1
+  checkOcclusion: 0
   occlusionLayers:
     serializedVersion: 2
-    m_Bits: 97079
+    m_Bits: 227638
   raycastCount: 5
   showOnlyInCameraView: 0
   cameraViewAngle: 20
@@ -1623,7 +1623,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 3.5
   rotationSpeed: 5
-  stoppingDistance: 7
+  stoppingDistance: 6
   damage: 1
   detectionRange: 999
   obstacleDetectionDistance: 2
@@ -1639,7 +1639,7 @@ MonoBehaviour:
   entityType: 1
   maxHealth: 3
   currentHealth: 0
-  fadeOutDuration: 1
+  fadeOutDuration: 0.7
   destroyDelay: 0.5
   dropItem: {fileID: 4477868127934335147, guid: cd7b71c7ab0c0924cb131410269bc2a3,
     type: 3}
@@ -1656,6 +1656,7 @@ MonoBehaviour:
   projectilePrefab: {fileID: 1828155836940170, guid: dae25183ea74cce438cd4aca466b1ef4,
     type: 3}
   headLookYOffset: 1.5
+  retreatDistance: 4
   retreatDelay: 0.6
 --- !u!1 &7470947432694246004
 GameObject:

@@ -18,6 +18,7 @@ public class SpiderAI : EnemyAI
     [SerializeField] private float headLookYOffset;
     
     [Header("Retreat Settings")]
+    [SerializeField] private float retreatDistance = 3f; // 이 거리보다 가까우면 후퇴
     [SerializeField] private float retreatDelay = 0.3f; // 후퇴 딜레이 시간
     
     private bool isBodyRotating = false;
@@ -81,16 +82,16 @@ public class SpiderAI : EnemyAI
 
         if (distanceToPlayer > stoppingDistance)
         {
-            // 앞으로 이동 중이면 후퇴 타이머 리셋
+            // 멀리 있음 - 전진
             isRetreating = false;
             retreatTimer = 0f;
             
             Vector3 newPosition = rb.position + moveDirection * (moveSpeed * Time.fixedDeltaTime);
             rb.MovePosition(newPosition);
         }
-        else if(distanceToPlayer < stoppingDistance)
+        else if (distanceToPlayer < retreatDistance)
         {
-            // 후퇴 딜레이 처리
+            // 너무 가까움 - 후퇴 딜레이 처리
             if (!isRetreating)
             {
                 retreatTimer += Time.fixedDeltaTime;
@@ -107,6 +108,12 @@ public class SpiderAI : EnemyAI
                 Vector3 backPosition = rb.position - moveDirection * (moveSpeed / 1.5f) * Time.fixedDeltaTime;
                 rb.MovePosition(backPosition);
             }
+        }
+        else
+        {
+            // retreatDistance와 stoppingDistance 사이 - 정지
+            isRetreating = false;
+            retreatTimer = 0f;
         }
 
         if (moveDirection != Vector3.zero)
@@ -149,7 +156,6 @@ public class SpiderAI : EnemyAI
         }
     }
     
-    
     protected override void FixedUpdate()
     {
         if (isDead) return;
@@ -159,18 +165,38 @@ public class SpiderAI : EnemyAI
             return;
         }
         
+        float distanceToPlayer = Vector3.Distance(transform.position, player.position);
         
+        // Move()를 먼저 호출
         if (moveDirection != Vector3.zero)
         {
             Move();
+        }
+        
+        // 애니메이션 처리
+        if (distanceToPlayer >= retreatDistance && distanceToPlayer <= stoppingDistance)
+        {
+            // retreatDistance와 stoppingDistance 사이 - 정지, 애니메이션 OFF
+            anim.SetBool("isWalking", false);
+        }
+        else if (distanceToPlayer < retreatDistance && !isRetreating)
+        {
+            // 후퇴 대기 중 - 애니메이션 OFF
+            anim.SetBool("isWalking", false);
+        }
+        else if (moveDirection != Vector3.zero)
+        {
+            // 이동 중 (전진 또는 후퇴) - 애니메이션 ON
             anim.SetBool("isWalking", true);
         }
         else if (isBodyRotating)
         {
+            // 제자리 회전 중 - 애니메이션 ON
             anim.SetBool("isWalking", true);
         }
         else
         {
+            // 완전 정지 - 애니메이션 OFF
             anim.SetBool("isWalking", false);
         }
     }

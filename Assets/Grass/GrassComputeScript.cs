@@ -454,6 +454,19 @@ public class GrassComputeScript : MonoBehaviour
         // variables sent to the shader every frame
         m_InstantiatedComputeShader.SetFloat("_Time", Time.time);
         m_InstantiatedComputeShader.SetMatrix("_LocalToWorld", transform.localToWorldMatrix);
+    
+        // ✅ 시간 정지 상태 체크해서 바람 강도 조절
+        if (TimeStopManager.Instance != null && TimeStopManager.Instance.IsTimeStopped)
+        {
+            // 시간 정지 중: 바람 강도 0
+            m_InstantiatedComputeShader.SetFloat("_WindStrength", 0f);
+        }
+        else
+        {
+            // 정상 상태: 원래 바람 강도
+            m_InstantiatedComputeShader.SetFloat("_WindStrength", currentPresets.windStrength);
+        }
+    
         if (interactors.Length > 0)
         {
             Vector4[] positions = new Vector4[interactors.Length];
@@ -461,7 +474,7 @@ public class GrassComputeScript : MonoBehaviour
             for (int i = 0; i < interactors.Length; i++)
             {
                 positions[i] = new Vector4(interactors[i].transform.position.x, interactors[i].transform.position.y, interactors[i].transform.position.z,
-                interactors[i].radius);
+                    interactors[i].radius);
 
             }
             m_InstantiatedComputeShader.SetVectorArray(shaderID, positions);

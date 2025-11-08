@@ -1,6 +1,7 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class TargetAnchorBox : MonoBehaviour
 {
@@ -48,6 +49,7 @@ public class TargetAnchorBox : MonoBehaviour
     [SerializeField] private float cameraViewAngle = 60f;
     
     private Camera mainCamera;
+    private Canvas parentCanvas;
     private RectTransform anchorBoxUI;
     private Image[] borderLines;
     private TextMeshProUGUI nameText;
@@ -64,14 +66,19 @@ public class TargetAnchorBox : MonoBehaviour
     private Bounds lastValidBounds;
     private bool isDying = false;
     
+    private Color originalBoxColor;
+    private Coroutine colorTransitionCoroutine;
+    
     private void Start()
     {
         mainCamera = Camera.main;
         enemyAI = GetComponent<EnemyAI>();
-        targetRenderer = GetComponentInChildren<Renderer>();
+        
         targetCollider = GetComponent<Collider>();
+        targetRenderer = GetComponentInChildren<Renderer>();
         
         SetDefaultColorByType();
+        originalBoxColor = boxColor;
         AnchorBoxManager.Instance?.RegisterTarget(this);
     }
     
@@ -197,13 +204,28 @@ public class TargetAnchorBox : MonoBehaviour
     
     public void CreateUI(Transform uiParent)
     {
+        // ★ Canvas 참조 가져오기
+        parentCanvas = uiParent.GetComponentInParent<Canvas>();
+        
         GameObject boxObj = new GameObject($"AnchorBox_{gameObject.name}");
         boxObj.transform.SetParent(uiParent, false);
         
         anchorBoxUI = boxObj.AddComponent<RectTransform>();
-        anchorBoxUI.anchorMin = Vector2.zero;
-        anchorBoxUI.anchorMax = Vector2.zero;
-        anchorBoxUI.pivot = new Vector2(0.5f, 0.5f);
+        
+        // ★ Canvas 중앙을 기준으로 설정
+        if (parentCanvas != null && parentCanvas.renderMode == RenderMode.ScreenSpaceCamera)
+        {
+            anchorBoxUI.anchorMin = new Vector2(0.5f, 0.5f);
+            anchorBoxUI.anchorMax = new Vector2(0.5f, 0.5f);
+            anchorBoxUI.pivot = new Vector2(0.5f, 0.5f);
+        }
+        else
+        {
+            // Screen Space - Overlay
+            anchorBoxUI.anchorMin = Vector2.zero;
+            anchorBoxUI.anchorMax = Vector2.zero;
+            anchorBoxUI.pivot = new Vector2(0.5f, 0.5f);
+        }
         
         CreateBorderLines();
         
@@ -290,6 +312,12 @@ public class TargetAnchorBox : MonoBehaviour
     
     private void LateUpdate()
     {
+        // ★ Camera 재확인
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+        
         if (anchorBoxUI == null || mainCamera == null) return;
         
         if (!gameObject.activeInHierarchy || this == null)
@@ -334,20 +362,13 @@ public class TargetAnchorBox : MonoBehaviour
             return;
         }
         
-        if (screenPos.x < -100 || screenPos.x > Screen.width + 100 || 
-            screenPos.y < -100 || screenPos.y > Screen.height + 100)
-        {
-            anchorBoxUI.gameObject.SetActive(false);
-            return;
-        }
-        
         anchorBoxUI.gameObject.SetActive(alwaysShow);
         
-        Bounds bounds = GetScreenBounds();
+        Bounds screenBounds = GetScreenBoundsForCanvasMode();
         
-        Vector2 boxSize = new Vector2(bounds.size.x, bounds.size.y);
+        Vector2 boxSize = new Vector2(screenBounds.size.x, screenBounds.size.y);
         anchorBoxUI.sizeDelta = boxSize;
-        anchorBoxUI.anchoredPosition = new Vector2(bounds.center.x, bounds.center.y);
+        anchorBoxUI.anchoredPosition = new Vector2(screenBounds.center.x, screenBounds.center.y);
         
         if (useCornerOnly)
             UpdateCornerLines(boxSize);
@@ -380,14 +401,111 @@ public class TargetAnchorBox : MonoBehaviour
         }
     }
     
+    private Bounds GetScreenBoundsForCanvasMode()
+    {
+        Bounds worldBounds;
+    
+        if (isDying)
+        {
+            worldBounds = lastValidBounds;
+        }
+        else
+        {
+            // ★ Collider 우선 사용
+            if (targetCollider != null)
+            {
+                worldBounds = targetCollider.bounds;
+            }
+            else if (targetRenderer != null)
+            {
+                worldBounds = targetRenderer.bounds;
+            }
+            else
+            {
+                worldBounds = new Bounds(transform.position, Vector3.one);
+            }
+        }
+
+        Vector3[] corners = new Vector3[8];
+        corners[0] = worldBounds.min;
+        corners[1] = new Vector3(worldBounds.min.x, worldBounds.min.y, worldBounds.max.z);
+        corners[2] = new Vector3(worldBounds.min.x, worldBounds.max.y, worldBounds.min.z);
+        corners[3] = new Vector3(worldBounds.max.x, worldBounds.min.y, worldBounds.min.z);
+        corners[4] = new Vector3(worldBounds.min.x, worldBounds.max.y, worldBounds.max.z);
+        corners[5] = new Vector3(worldBounds.max.x, worldBounds.min.y, worldBounds.max.z);
+        corners[6] = new Vector3(worldBounds.max.x, worldBounds.max.y, worldBounds.min.z);
+        corners[7] = worldBounds.max;
+
+        Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
+        Vector2 max = new Vector2(float.MinValue, float.MinValue);
+
+        foreach (Vector3 corner in corners)
+        {
+            Vector2 canvasPoint = WorldToCanvasPoint(corner);
+    
+            if (canvasPoint.x < min.x) min.x = canvasPoint.x;
+            if (canvasPoint.y < min.y) min.y = canvasPoint.y;
+            if (canvasPoint.x > max.x) max.x = canvasPoint.x;
+            if (canvasPoint.y > max.y) max.y = canvasPoint.y;
+        }
+
+        min.x -= boxPadding * 0.5f;
+        min.y -= boxPadding * 0.5f;
+        max.x += boxPadding * 0.5f;
+        max.y += boxPadding * 0.5f;
+
+        Vector2 center = (min + max) * 0.5f;
+        Vector2 size = max - min;
+
+        return new Bounds(center, size);
+    }
+    
+    // ★ World 좌표를 Canvas 좌표로 변환
+    private Vector2 WorldToCanvasPoint(Vector3 worldPosition)
+    {
+        // ★ mainCamera null 체크
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+            if (mainCamera == null)
+            {
+                Debug.LogError("Main camera not found!");
+                return Vector2.zero;
+            }
+        }
+        
+        if (parentCanvas == null)
+        {
+            Vector3 screenPoint = mainCamera.WorldToScreenPoint(worldPosition);
+            return new Vector2(screenPoint.x, screenPoint.y);
+        }
+        
+        RectTransform canvasRect = parentCanvas.GetComponent<RectTransform>();
+        
+        // World → Screen
+        Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPosition);
+        
+        // Screen → Canvas Local Point
+        Vector2 canvasPoint;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect, 
+            screenPos, 
+            parentCanvas.renderMode == RenderMode.ScreenSpaceCamera ? parentCanvas.worldCamera : null,
+            out canvasPoint
+        );
+        
+        return canvasPoint;
+    }
+    
     public void SetUIAlpha(float alpha)
     {
         forceAlpha = Mathf.Clamp01(alpha);
         isForceAlphaActive = true;
-        
+    
         if (alpha < 1f && !isDying)
         {
             isDying = true;
+            // ★ Collider 우선으로 저장
             if (targetCollider != null)
                 lastValidBounds = targetCollider.bounds;
             else if (targetRenderer != null)
@@ -404,62 +522,84 @@ public class TargetAnchorBox : MonoBehaviour
         isDying = false;
     }
     
-    private Bounds GetScreenBounds()
+    public void TransitionToColor(Color targetColor, float speed)
     {
-        Bounds bounds;
+        if (colorTransitionCoroutine != null)
+        {
+            StopCoroutine(colorTransitionCoroutine);
+        }
         
-        if (isDying)
+        colorTransitionCoroutine = StartCoroutine(ColorTransitionCoroutine(targetColor, speed));
+    }
+    
+    public void RestoreOriginalColor(float speed)
+    {
+        if (colorTransitionCoroutine != null)
         {
-            bounds = lastValidBounds;
+            StopCoroutine(colorTransitionCoroutine);
         }
-        else
-        {
-            if (targetCollider != null)
-            {
-                bounds = targetCollider.bounds;
-            }
-            else if (targetRenderer != null)
-            {
-                bounds = targetRenderer.bounds;
-            }
-            else
-            {
-                bounds = new Bounds(transform.position, Vector3.one);
-            }
-        }
-    
-        Vector3[] corners = new Vector3[8];
-        corners[0] = bounds.min;
-        corners[1] = new Vector3(bounds.min.x, bounds.min.y, bounds.max.z);
-        corners[2] = new Vector3(bounds.min.x, bounds.max.y, bounds.min.z);
-        corners[3] = new Vector3(bounds.max.x, bounds.min.y, bounds.min.z);
-        corners[4] = new Vector3(bounds.min.x, bounds.max.y, bounds.max.z);
-        corners[5] = new Vector3(bounds.max.x, bounds.min.y, bounds.max.z);
-        corners[6] = new Vector3(bounds.max.x, bounds.max.y, bounds.min.z);
-        corners[7] = bounds.max;
-    
-        Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
-        Vector2 max = new Vector2(float.MinValue, float.MinValue);
-    
-        foreach (Vector3 corner in corners)
-        {
-            Vector3 screenPoint = mainCamera.WorldToScreenPoint(corner);
         
-            if (screenPoint.x < min.x) min.x = screenPoint.x;
-            if (screenPoint.y < min.y) min.y = screenPoint.y;
-            if (screenPoint.x > max.x) max.x = screenPoint.x;
-            if (screenPoint.y > max.y) max.y = screenPoint.y;
+        colorTransitionCoroutine = StartCoroutine(ColorTransitionCoroutine(originalBoxColor, speed));
+    }
+    
+    private IEnumerator ColorTransitionCoroutine(Color targetColor, float speed)
+    {
+        Color currentColor = boxColor;
+        float elapsed = 0f;
+        float duration = 1f / speed;
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+            
+            boxColor = Color.Lerp(currentColor, targetColor, t);
+            UpdateUIColors();
+            
+            yield return null;
         }
+        
+        boxColor = targetColor;
+        UpdateUIColors();
+        
+        colorTransitionCoroutine = null;
+    }
     
-        min.x -= boxPadding * 0.5f;
-        min.y -= boxPadding * 0.5f;
-        max.x += boxPadding * 0.5f;
-        max.y += boxPadding * 0.5f;
-    
-        Vector2 center = (min + max) * 0.5f;
-        Vector2 size = max - min;
-    
-        return new Bounds(center, size);
+    private void UpdateUIColors()
+    {
+        if (borderLines != null)
+        {
+            foreach (var line in borderLines)
+            {
+                if (line != null)
+                {
+                    Color lineColor = boxColor;
+                    lineColor.a = line.color.a;
+                    line.color = lineColor;
+                }
+            }
+        }
+        
+        if (nameText != null)
+        {
+            Color textColor = boxColor;
+            textColor.a = nameText.color.a;
+            nameText.color = textColor;
+        }
+        
+        if (healthText != null)
+        {
+            Color textColor = boxColor;
+            textColor.a = healthText.color.a;
+            healthText.color = textColor;
+        }
+        
+        if (damageText != null)
+        {
+            Color textColor = boxColor;
+            textColor.a = damageText.color.a;
+            damageText.color = textColor;
+        }
     }
     
     private void UpdateFullBorderLines(Vector2 boxSize)
@@ -551,6 +691,7 @@ public class TargetAnchorBox : MonoBehaviour
     public void SetBoxColor(Color color)
     {
         boxColor = color;
+        originalBoxColor = color;
         foreach (var line in borderLines)
         {
             if (line != null) line.color = color;

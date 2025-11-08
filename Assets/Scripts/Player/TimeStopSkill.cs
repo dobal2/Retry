@@ -59,7 +59,9 @@ public class TimeStopSkill : MonoBehaviour
     [SerializeField] private Material volumetricFogMaterial;
     [SerializeField] private float fogColorTransitionSpeed = 5f;
 
-    [SerializeField] private GameObject anchorBoxContainer;
+    [Header("Anchor Box Settings")]
+    [SerializeField] private Color timeStopAnchorColor = Color.gray;
+    [SerializeField] private float anchorColorTransitionSpeed = 5f;
     
     private Coroutine fogColorCoroutine;
 
@@ -247,6 +249,10 @@ public class TimeStopSkill : MonoBehaviour
         // ✅ 시간 정지 시작!
         isTimeStopActive = true;
         TimeStopManager.Instance.StartTimeStop();
+        
+        // ✅ 앵커박스 색상을 회색으로 전환
+        TransitionAllAnchorBoxColors(timeStopAnchorColor);
+        
         Debug.Log("[Skill] Time Stop activated!");
 
         // ✅ 시계 소리 반복 재생 시작
@@ -447,6 +453,9 @@ public class TimeStopSkill : MonoBehaviour
         // ✅ 시간정지 종료
         TimeStopManager.Instance.StopTimeStop();
 
+        // ✅ 앵커박스 색상 복구
+        RestoreAllAnchorBoxColors();
+
         // ✅ 이전 Saturation 코루틴 중단 후 새로 시작
         if (saturationCoroutine != null)
         {
@@ -488,6 +497,42 @@ public class TimeStopSkill : MonoBehaviour
         }
 
         Debug.Log("[Skill] Time Stop ended!");
+    }
+    
+    /// <summary>
+    /// 모든 TargetAnchorBox의 색상을 전환
+    /// </summary>
+    private void TransitionAllAnchorBoxColors(Color targetColor)
+    {
+        TargetAnchorBox[] allAnchorBoxes = FindObjectsOfType<TargetAnchorBox>();
+        
+        foreach (var anchorBox in allAnchorBoxes)
+        {
+            if (anchorBox != null)
+            {
+                anchorBox.TransitionToColor(targetColor, anchorColorTransitionSpeed);
+            }
+        }
+        
+        Debug.Log($"[Skill] Transitioned {allAnchorBoxes.Length} anchor boxes to {targetColor}");
+    }
+    
+    /// <summary>
+    /// 모든 TargetAnchorBox의 원래 색상 복구
+    /// </summary>
+    private void RestoreAllAnchorBoxColors()
+    {
+        TargetAnchorBox[] allAnchorBoxes = FindObjectsOfType<TargetAnchorBox>();
+        
+        foreach (var anchorBox in allAnchorBoxes)
+        {
+            if (anchorBox != null)
+            {
+                anchorBox.RestoreOriginalColor(anchorColorTransitionSpeed);
+            }
+        }
+        
+        Debug.Log($"[Skill] Restored {allAnchorBoxes.Length} anchor boxes to original colors");
     }
     
     IEnumerator TransitionFogColor(float targetBlend, float speed)

@@ -14,7 +14,6 @@ public class AnchorBoxManager : MonoBehaviour
     [Header("Display Mode")]
     [SerializeField] private bool showOnlyClosestToCenter = false;
     [SerializeField] private float centerDetectionRadius = 200f;
-    [SerializeField] private LayerMask occlusionLayers = -1;
     
     private List<TargetAnchorBox> registeredTargets = new List<TargetAnchorBox>();
     private Camera mainCamera;
@@ -65,10 +64,6 @@ public class AnchorBoxManager : MonoBehaviour
             // 화면 뒤에 있으면 스킵
             if (screenPos.z < 0) continue;
             
-            // ★ 오클루전 체크 (가려진 적은 제외)
-            if (!IsVisibleFromCamera(target.transform.position))
-                continue;
-            
             float distanceToCenter = Vector2.Distance(new Vector2(screenPos.x, screenPos.y), screenCenter);
             
             // 반경 내에 있고 가장 가까운지 체크
@@ -93,33 +88,6 @@ public class AnchorBoxManager : MonoBehaviour
                 target.SetVisibility(false);
             }
         }
-    }
-    
-    /// <summary>
-    /// ★ 카메라에서 타겟이 보이는지 확인 (오클루전 체크)
-    /// </summary>
-    private bool IsVisibleFromCamera(Vector3 targetPosition)
-    {
-        Vector3 direction = targetPosition - mainCamera.transform.position;
-        float distance = direction.magnitude;
-        
-        if (Physics.Raycast(mainCamera.transform.position, direction.normalized, out RaycastHit hit, distance, occlusionLayers))
-        {
-            // 맞은 오브젝트가 타겟 또는 타겟의 자식이면 보임
-            Transform hitRoot = hit.transform.root;
-            Vector3 targetRoot = targetPosition;
-            
-            // 타겟 근처에 맞았으면 OK
-            if (Vector3.Distance(hit.point, targetPosition) < 2f)
-            {
-                return true;
-            }
-            
-            return false;
-        }
-        
-        // 아무것도 안 맞음 = 보임
-        return true;
     }
     
     private void SetupCanvas()
