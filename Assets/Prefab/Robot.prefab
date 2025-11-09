@@ -1566,9 +1566,9 @@ MonoBehaviour:
   showHealthText: 1
   fadeWithDistance: 1
   maxTextVisibleDistance: 30
-  maxVisibleDistance: 100
-  minVisibleDistance: 4
-  checkOcclusion: 0
+  maxVisibleDistance: 45
+  minVisibleDistance: 3
+  checkOcclusion: 1
   occlusionLayers:
     serializedVersion: 2
     m_Bits: 227638
@@ -1652,7 +1652,7 @@ MonoBehaviour:
   bodyRotationSpeed: 3
   bodyRotationThreshold: 30
   shootPos: {fileID: 4992049429363652868}
-  shootCoolTime: 2
+  shootCoolTime: 3
   projectilePrefab: {fileID: 1828155836940170, guid: dae25183ea74cce438cd4aca466b1ef4,
     type: 3}
   headLookYOffset: 1.5

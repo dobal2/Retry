@@ -1190,6 +1190,7 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  damageMaterial: {fileID: 2100000, guid: 727d95475a5b7b5468de04929a44c624, type: 2}
   died: 0
 --- !u!114 &4187518083801446474
 MonoBehaviour:
