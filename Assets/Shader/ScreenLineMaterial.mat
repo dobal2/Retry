@@ -38,8 +38,8 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BlurOffset: 0.00182
-    - _Intensity: 0.812
+    - _BlurOffset: 0.0025
+    - _Intensity: 0.4
     - _ScanLineSpeed: 0.135
     - _ScanningLineSpeed: 1
     - _ScanningLines: 5.65
@@ -49,7 +49,7 @@ Material:
     - _ScreenLines: 5
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 0}
-    - _ScanLineColor: {r: 0, g: 0.7202115, b: 1, a: 0}
+    - _ScanLineColor: {r: 0, g: 0.45767736, b: 1, a: 0}
     - _ScanningLineColor: {r: 61.504417, g: 589.6997, b: 766.9961, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -24,7 +24,7 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] private Material damageMaterial; // ★ 데미지 효과 적용할 메터리얼
     private float originalBlurOffset = 0.0025f;
     private float maxBlurOffset = 0.005f;
-    private float originalIntensity = 0.5f;
+    private float originalIntensity = 0.4f;
     private float maxIntensity = 1f;
     
     private Animator anim;
