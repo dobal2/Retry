@@ -44,6 +44,8 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     [Header("Material")] 
     [SerializeField] private Material[] materials;
     
+    [SerializeField] private GameObject mapIcon;
+    
     private Vector3 frozenVelocity;
     private Vector3 frozenAngularVelocity;
     
@@ -67,6 +69,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         rb = GetComponent<Rigidbody>();
         anim = GetComponentInChildren<Animator>();
         meshRenderers = GetComponentsInChildren<MeshRenderer>();
+        mapIcon.SetActive(true);
         
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         rb.useGravity = true;
@@ -412,6 +415,8 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         // ★ 약간의 딜레이 후 콜라이더 끄기 (앵커박스가 Bounds 캐시할 시간 확보)
         yield return null;
         yield return null;
+        
+        mapIcon.SetActive(false);
 
         // ★ 이제 콜라이더 끄기
         Collider[] colliders = GetComponentsInChildren<Collider>();

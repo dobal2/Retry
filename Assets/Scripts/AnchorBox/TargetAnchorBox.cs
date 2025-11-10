@@ -310,7 +310,7 @@ public class TargetAnchorBox : MonoBehaviour
         textRect.anchoredPosition = new Vector2(10, 45);
     }
     
-    private void LateUpdate()
+    private void Update()
     {
         // ★ Camera 재확인
         if (mainCamera == null)

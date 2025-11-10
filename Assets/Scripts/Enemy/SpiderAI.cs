@@ -21,6 +21,7 @@ public class SpiderAI : EnemyAI
     [SerializeField] private float retreatDistance = 3f; // 이 거리보다 가까우면 후퇴
     [SerializeField] private float retreatDelay = 0.3f; // 후퇴 딜레이 시간
     
+    
     private bool isBodyRotating = false;
     private bool isRetreating = false; // 현재 후퇴 중인지
     private float retreatTimer = 0f; // 후퇴 딜레이 타이머

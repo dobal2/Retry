@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ForceField
+  m_Shader: {fileID: 4800000, guid: 10558d48cf5ea9b469047d32fc72cf0c, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _HexTex:
+        m_Texture: {fileID: 2800000, guid: be2e3ecd1b29c7949a1e1ecbc554616c, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _NoiseTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Alpha: 0
+    - _DistortionStrength: 0.02
+    - _FresnelPower: 1.29
+    - _HexBrightness: 1.69
+    - _HexEdgeBrightness: 6.86
+    - _HexEdgeOnly: 0.977
+    - _HexEdgeThickness: 0.5
+    - _HexFillBrightness: 5
+    - _HexScale: 3.13
+    - _HexScaleX: 5
+    - _HexScaleY: 2.5
+    - _HexTopFade: 1
+    - _IntersectPower: 1.75
+    - _IntersectWidth: 0.79
+    - _NoiseScale: 1
+    - _NoiseStrength: 0.3
+    - _RimIntensity: 0.23
+    m_Colors:
+    - _HexColor: {r: 0.9386792, g: 0.9773955, b: 1, a: 1}
+    - _HexEdgeColor: {r: 0.3679245, g: 0.3679245, b: 0.3679245, a: 1}
+    - _HexFillColor: {r: 0, g: 9.072189, b: 9.269981, a: 1}
+    - _HexSpeed: {r: -0.18, g: 0, b: 0, a: 0}
+    - _IntersectColor: {r: 0, g: 0.5206728, b: 1, a: 1}
+    - _MainColor: {r: 0, g: 0.5, b: 1, a: 1}
+    - _NoiseSpeed: {r: 0.05, g: 0.05, b: 0, a: 0}
+    - _RimColor: {r: 0, g: 0.42356405, b: 0.6415094, a: 1}
+    - _ScrollSpeed: {r: 0, g: 0.1, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

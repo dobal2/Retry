@@ -50,13 +50,29 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private GrassGenerator grassGenerator;
     private GameObject waterPlane;
     
-
     
-    // Falloff 맵 캐시
+    [Header("Object Placement")]
+    [SerializeField] private GameObject energyCore;
+    
+    [Header("Seed Settings")]
+    [SerializeField] private bool useRandomSeed = true;
+    [SerializeField] private string seedString = "";
+    private int numericSeed;
+    
     private float[,] falloffMap;
 
     private void Start()
     {
+        if (useRandomSeed || string.IsNullOrEmpty(seedString))
+        {
+            seedString = GenerateRandomSeedString(16); // 16자리
+            Debug.Log($"🌍 World Seed: {seedString}");
+        }
+    
+        // ★ 문자열 시드를 숫자로 변환
+        numericSeed = SeedStringToInt(seedString);
+        Debug.Log($"Numeric seed: {numericSeed}");
+        
         grassGenerator = GetComponent<GrassGenerator>();
         
         if (grassGenerator == null)
@@ -77,6 +93,8 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         
         GenerateWorld();
         
+
+        
         if (enableWater && waterMaterial != null)
         {
             CreateWaterPlane();
@@ -89,6 +107,50 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         {
             UpdateVisibleChunks();
             lastUpdateTime = Time.time;
+        }
+    }
+    
+    private string GenerateRandomSeedString(int length)
+    {
+        System.Text.StringBuilder result = new System.Text.StringBuilder(length);
+        System.Random random = new System.Random();
+    
+        for (int i = 0; i < length; i++)
+        {
+            result.Append(random.Next(0, 10)); // 0~9
+        }
+    
+        return result.ToString();
+    }
+
+
+    private int SeedStringToInt(string seed)
+    {
+        if (string.IsNullOrEmpty(seed))
+            return 0;
+    
+        // FNV-1a 해시 알고리즘 (안정적)
+        const uint FNV_prime = 16777619;
+        uint hash = 2166136261;
+    
+        foreach (char c in seed)
+        {
+            hash ^= c;
+            hash *= FNV_prime;
+        }
+    
+        return (int)hash;
+    }
+    
+    private void PlaceEnergyCoreObject()
+    {
+        Vector3 rayStart = new Vector3(0, 100f, 0);
+    
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 1000f, LayerMask.GetMask("Ground")))
+        {
+            GameObject obj = Instantiate(energyCore, hit.point + new Vector3(0,3,0), Quaternion.identity);
+            obj.transform.up = hit.normal;
+            Debug.Log($"Center object placed at height: {hit.point.y}");
         }
     }
 
@@ -231,7 +293,11 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         LoadingUI.Instance?.HideLoading();
         await Task.Delay(100);
     
-        // ★★★ 이 부분이 있어야 함! ★★★
+        if (energyCore != null)
+        {
+            PlaceEnergyCoreObject();
+        }
+        
         if (GameManager.Instance != null)
         {
             GameManager.Instance.OnTerrainGenerationComplete();
@@ -387,7 +453,7 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         ChunkData data = new ChunkData(chunkCoord, chunkSize);
         
         Vector2 offset = new Vector2(chunkCoord.x * chunkSize, chunkCoord.y * chunkSize);
-        System.Random prng = new System.Random(seed);
+        System.Random prng = new System.Random(numericSeed);
         Vector2[] octaveOffsets = new Vector2[octavesCount];
 
         for (int i = 0; i < octavesCount; i++)
