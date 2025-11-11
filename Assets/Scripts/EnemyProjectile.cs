@@ -359,7 +359,7 @@ public class EnemyProjectile : MonoBehaviour
 
     protected virtual void ApplyDamage(GameObject hitObject)
     {
-        PlayerHealth enemy = hitObject.GetComponent<PlayerHealth>();
+        PlayerStats enemy = hitObject.GetComponent<PlayerStats>();
         if (enemy != null)
         {
             enemy.TakeDamage(damage);

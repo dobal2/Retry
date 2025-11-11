@@ -42,6 +42,8 @@ Shader "Custom/ForceField_Complete_URP"
             Cull Off
             ZWrite Off
             Blend SrcAlpha OneMinusSrcAlpha
+             ZTest LEqual  // ★ 추가
+            Offset -1, -1  // ★ 추가 (Z-Fighting 방지)
             
             HLSLPROGRAM
             #pragma vertex vert
@@ -112,65 +114,64 @@ Shader "Custom/ForceField_Complete_URP"
             
             half4 frag(Varyings input) : SV_Target
             {
-                // ★ 양면 Fresnel 계산
                 half3 normal = normalize(input.normalWS);
                 half3 viewDir = normalize(input.viewDirWS);
                 
-                half NdotV = abs(dot(normal, viewDir));
-                half fresnel = pow(1.0 - NdotV, _FresnelPower);
+                // ★ Fresnel 안정화
+                half NdotV = saturate(abs(dot(normal, viewDir)) + 0.001);
+                half fresnel = saturate(pow(1.0 - NdotV, _FresnelPower));
                 
-                // ★ 높이 기반 페이드 (꼭대기 = 텍스처 안 보임)
-                // normalOS.y가 1에 가까우면 꼭대기
                 half3 normalOS = normalize(input.positionOS);
                 half topMask = saturate((normalOS.y - (1.0 - _HexTopFade)) / _HexTopFade);
-                topMask = 1.0 - topMask; // 반전 (꼭대기 = 0)
+                topMask = 1.0 - topMask;
                 
-                // ★ Hexagon 패턴
                 float2 hexUV = input.uv * float2(_HexScaleX, _HexScaleY) + _HexSpeed.xy * _Time.y;
                 half4 hexPattern = SAMPLE_TEXTURE2D(_HexTex, sampler_HexTex, hexUV);
                 
                 half hexValue = hexPattern.r;
+                half hexEdgeMask = saturate(pow(hexValue, 1.0 / _HexEdgeThickness));
                 
-                // ★ 테두리 두께 (0~1 범위 유지)
-                half hexEdgeMask = pow(hexValue, 1.0 / _HexEdgeThickness);
-                hexEdgeMask = saturate(hexEdgeMask);
+                half hexFillMask = saturate((1.0 - hexEdgeMask) * hexValue);
                 
-                // 안쪽 영역
-                half hexFillMask = 1.0 - hexEdgeMask;
-                hexFillMask = saturate(hexFillMask * hexValue);
-                
-                // ★ 높이 마스크 적용 (꼭대기에서 텍스처 페이드)
                 hexEdgeMask *= topMask;
                 hexFillMask *= topMask;
                 
-                // ★ Depth Intersection
+                // ★ Depth Intersection 안정화
                 float2 screenUV = input.screenPos.xy / input.screenPos.w;
-                float sceneDepth = LinearEyeDepth(SampleSceneDepth(screenUV), _ZBufferParams);
-                float surfaceDepth = LinearEyeDepth(input.positionCS.z, _ZBufferParams);
-                float depthDiff = abs(sceneDepth - surfaceDepth);
+                half intersection = 0;
                 
-                half intersection = 1.0 - saturate(depthDiff / _IntersectWidth);
-                intersection = pow(intersection, _IntersectPower);
+                if (screenUV.x >= 0 && screenUV.x <= 1 && screenUV.y >= 0 && screenUV.y <= 1)
+                {
+                    float sceneDepth = LinearEyeDepth(SampleSceneDepth(screenUV), _ZBufferParams);
+                    float surfaceDepth = LinearEyeDepth(input.positionCS.z, _ZBufferParams);
+                    float depthDiff = abs(sceneDepth - surfaceDepth);
+                    
+                    if (depthDiff >= 0.01)
+                    {
+                        intersection = 1.0 - saturate(depthDiff / _IntersectWidth);
+                        intersection = pow(intersection, _IntersectPower);
+                    }
+                }
                 
-                // ★ 최종 컬러
                 half4 col = _MainColor;
                 
                 half hexMask = lerp(1.0, fresnel, _HexEdgeOnly);
                 
-                // ★★ 마스크(두께)와 색상(밝기)을 분리
                 col.rgb += _HexEdgeColor.rgb * hexEdgeMask * hexMask;
                 col.rgb += _HexFillColor.rgb * hexFillMask * hexMask;
                 
                 col.rgb += _RimColor.rgb * fresnel * _RimIntensity;
                 col.rgb += _IntersectColor.rgb * intersection * 3.0;
                 
-                // 교차점 Hex
                 col.rgb += _HexEdgeColor.rgb * hexEdgeMask * intersection * 0.5;
                 col.rgb += _HexFillColor.rgb * hexFillMask * intersection * 0.5;
                 
                 half patternAlpha = (hexEdgeMask * 0.1 + hexFillMask * 0.05) * fresnel * 0.2;
                 col.a = saturate((fresnel + patternAlpha) * _Alpha + intersection);
                 col.a = max(col.a, 0.1);
+                
+                // ★ 최종 색상 제한
+                col.rgb = min(col.rgb, 10.0);
                 
                 return col;
             }
