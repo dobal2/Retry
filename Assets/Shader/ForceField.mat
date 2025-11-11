@@ -58,7 +58,7 @@ Material:
     - _HexColor: {r: 0.9386792, g: 0.9773955, b: 1, a: 1}
     - _HexEdgeColor: {r: 0.18405867, g: 0, b: 1, a: 1}
     - _HexFillColor: {r: 0, g: 0.733038, b: 0.74901974, a: 1}
-    - _HexSpeed: {r: -0.18, g: 0, b: 0, a: 0}
+    - _HexSpeed: {r: -0.18, g: -0.08, b: 0, a: 0}
     - _IntersectColor: {r: 0, g: 0.5206728, b: 1, a: 1}
     - _MainColor: {r: 0, g: 0.5, b: 1, a: 1}
     - _NoiseSpeed: {r: 0.05, g: 0.05, b: 0, a: 0}
