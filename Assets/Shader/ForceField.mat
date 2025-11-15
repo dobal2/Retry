@@ -38,6 +38,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _Alpha: 0.143
+    - _AnimationTime: 30.009537
     - _DistortionStrength: 0.02
     - _FresnelPower: 0.1
     - _HexBrightness: 1.69

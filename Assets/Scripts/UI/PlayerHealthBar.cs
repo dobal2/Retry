@@ -2,11 +2,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class PlayerHealth : MonoBehaviour
+public class PlayerHealthBar : MonoBehaviour
 {
     private Slider hpSlider;
     private TextMeshProUGUI hpText;
-    public bool died;
 
     private void Start()
     {
@@ -29,17 +28,6 @@ public class PlayerHealth : MonoBehaviour
         if (hpSlider != null)
             hpSlider.value = PlayerStats.Instance.GetHealthRatio();
         
-        if (died)
-            return;
-
-        if (!PlayerStats.Instance.IsAlive())
-        {
-            Die();
-        }
     }
-
-    private void Die()
-    {
-        died = true;
-    }
+    
 }

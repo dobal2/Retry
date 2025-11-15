@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -244,7 +245,6 @@ public class EnemyProjectile : MonoBehaviour
         }
     }
 
-   
 
     protected virtual void OnCollisionEnter(Collision collision)
     {

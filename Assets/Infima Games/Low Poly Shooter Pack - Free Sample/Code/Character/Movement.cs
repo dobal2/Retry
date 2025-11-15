@@ -1,6 +1,4 @@
-﻿// Copyright 2021, Infima Games. All Rights Reserved.
-
-using System.Linq;
+﻿using System.Linq;
 using System.Collections;
 using FirstGearGames.SmoothCameraShaker;
 using UnityEngine;
@@ -14,81 +12,43 @@ namespace InfimaGames.LowPolyShooterPack
         #region FIELDS SERIALIZED
 
         [Header("Audio Clips")]
-        [Tooltip("걷기 발소리 배열 (순서대로 재생)")]
-        [SerializeField]
-        private AudioClip[] audioClipsWalking;
-
-        [Tooltip("달리기 발소리 배열 (순서대로 재생)")]
-        [SerializeField]
-        private AudioClip[] audioClipsRunning;
-
-        [Tooltip("착지 소리 배열 (랜덤 재생)")]
-        [SerializeField]
-        private AudioClip[] audioClipsLanding;
-
-        [Tooltip("발소리 재생 간격 (걷기)")]
-        [SerializeField]
-        private float walkStepInterval = 0.35f;
-
-        [Tooltip("발소리 재생 간격 (달리기)")]
-        [SerializeField]
-        private float runStepInterval = 0.3f;
+        [SerializeField] private AudioClip[] audioClipsWalking;
+        [SerializeField] private AudioClip[] audioClipsRunning;
+        [SerializeField] private AudioClip[] audioClipsLanding;
+        [SerializeField] private float walkStepInterval = 0.35f;
+        [SerializeField] private float runStepInterval = 0.3f;
 
         [Header("Speeds")]
         [SerializeField] private float speedWalking = 5.0f;
-        [SerializeField, Tooltip("How fast the player moves while running.")]
-        private float speedRunning = 9.0f;
 
         [Header("Jump Settings")]
-        [SerializeField, Tooltip("점프 힘 세기")]
-        private float jumpForce = 6.0f;
-        [SerializeField, Tooltip("지면 레이어")]
-        private LayerMask groundLayer;
-        
+        [SerializeField] private float jumpForce = 6.0f;
+        [SerializeField] private LayerMask groundLayer;
         [SerializeField] private ShakeData shakeData;
         [SerializeField] private CameraShaker cameraShaker;
 
         [Header("Swimming Settings")]
-        [SerializeField, Tooltip("물 레이어")]
-        private LayerMask waterLayer;
-        [SerializeField, Tooltip("수영 속도")]
-        private float swimSpeed = 3.0f;
-        [SerializeField, Tooltip("수영 시 상승/하강 속도")]
-        private float swimVerticalSpeed = 2.0f;
-        [SerializeField, Tooltip("수면에서 점프하여 나갈 수 있는 힘")]
-        private float swimJumpForce = 8.0f;
-        [SerializeField, Tooltip("경사로로 물 밖으로 나갈 수 있는 최소 높이 (수면 기준)")]
-        private float exitWaterHeightThreshold = 0.3f;
+        [SerializeField] private LayerMask waterLayer;
+        [SerializeField] private float swimSpeed = 3.0f;
+        [SerializeField] private float swimVerticalSpeed = 2.0f;
+        [SerializeField] private float swimJumpForce = 8.0f;
 
         [Header("Landing Settings")]
-        [SerializeField, Tooltip("착지 시 속도 감소 비율 (0~1)")]
-        private float landingSpeedMultiplier = 0.3f;
-        [SerializeField, Tooltip("속도가 회복되는 시간 (초)")]
-        private float landingRecoveryTime = 0.5f;
-        [SerializeField, Tooltip("착지 판정 최소 낙하 속도 (양수로 입력)")]
-        private float minFallSpeedForLanding = 5f;
-        
-        [SerializeField, Tooltip("착지 효과를 위한 최소 공중 시간 (초)")]
-        private float minAirborneTimeForEffect = 0.3f;
-        [SerializeField, Tooltip("착지 효과가 발동되는 최대 경사각 (도)")]
-        private float maxSlopeAngleForLanding = 45f;
-        
-        [SerializeField, Tooltip("착지 효과를 위한 최소 공중 시간 (초)")]
-        private float minAirborneTime = 0.2f;
+        [SerializeField] private float landingSpeedMultiplier = 0.3f;
+        [SerializeField] private float landingRecoveryTime = 0.5f;
+        [SerializeField] private float minFallSpeedForLanding = 5f;
+        [SerializeField] private float minAirborneTimeForEffect = 0.3f;
+        [SerializeField] private float maxSlopeAngleForLanding = 45f;
+        [SerializeField] private float minAirborneTime = 0.2f;
 
         [Header("Landing Camera Effect")]
-        [SerializeField, Tooltip("카메라 Transform (Main Camera)")]
-        private Transform cameraTransform;
-        [SerializeField, Tooltip("착지 효과 지속 시간")]
-        private float landingDipDuration = 0.3f;
-        [SerializeField, Tooltip("최대 카메라 기울기 (도)")]
-        private float maxLandingTiltAmount = 6f;
-        [SerializeField, Tooltip("최대 기울기에 도달하는 공중 시간 (초)")]
-        private float maxAirTimeForTilt = 2f;
+        [SerializeField] private Transform cameraTransform;
+        [SerializeField] private float landingDipDuration = 0.3f;
+        [SerializeField] private float maxLandingTiltAmount = 6f;
+        [SerializeField] private float maxAirTimeForTilt = 2f;
 
         [Header("Debug")]
-        [SerializeField, Tooltip("착지 디버그 정보 표시")]
-        private bool showLandingDebug = false;
+        [SerializeField] private bool showLandingDebug = false;
         
         private bool isDashing = false;
 
@@ -110,13 +70,11 @@ namespace InfimaGames.LowPolyShooterPack
         private bool grounded;
         private bool jumpPressed;
         private bool canJump = true;
-        
         private int currentJumpCount = 0;
 
         private bool isSwimming = false;
         private float waterSurfaceY = 0f;
         private Collider currentWaterCollider;
-        
         private bool isSwimJumping = false;
         private float swimJumpTimer = 0f;
         private const float swimJumpDuration = 0.5f;
@@ -165,24 +123,18 @@ namespace InfimaGames.LowPolyShooterPack
                 originalCameraLocalPos = cameraTransform.localPosition;
                 originalCameraLocalRot = cameraTransform.localRotation;
             }
-
-
         }
 
         private void OnCollisionEnter(Collision collision)
         {
-            if (isSwimming)
-            {
-                CheckWaterExit();
-                return;
-            }
+            // 수영 중이면 지면 충돌 무시
+            if (isSwimming) return;
 
             if (((1 << collision.gameObject.layer) & groundLayer) == 0)
                 return;
 
             grounded = true;
             canJump = true;
-            
             currentJumpCount = 0;
 
             velocityBeforeLanding = rigidBody.linearVelocity.y;
@@ -191,24 +143,18 @@ namespace InfimaGames.LowPolyShooterPack
             {
                 CheckAndTriggerLanding(collision);
             }
-            else if (showLandingDebug)
-            {
-                Debug.Log($"<color=gray>[Landing] 착지 무시 - 공중시간 부족: {airborneTimer:F2}초 (최소: {minAirborneTime}초)</color>");
-            }
         }
 
         private void OnCollisionStay(Collision collision)
         {
+            // 수영 중이면 지면 충돌 무시
+            if (isSwimming) return;
+
             if (((1 << collision.gameObject.layer) & groundLayer) == 0)
                 return;
 
             grounded = true;
             canJump = true;
-            
-            if (isSwimming)
-            {
-                CheckWaterExit();
-            }
         }
 
         private void OnCollisionExit(Collision collision)
@@ -223,10 +169,6 @@ namespace InfimaGames.LowPolyShooterPack
         {
             if (airborneTimer < minAirborneTimeForEffect)
             {
-                if (showLandingDebug)
-                {
-                    Debug.Log($"<color=gray>[Landing] 착지 무시 - 공중시간 부족: {airborneTimer:F2}초</color>");
-                }
                 return;
             }
 
@@ -235,36 +177,20 @@ namespace InfimaGames.LowPolyShooterPack
             {
                 Vector3 normal = collision.contacts[0].normal;
                 slopeAngle = Vector3.Angle(Vector3.up, normal);
-
-                if (showLandingDebug)
-                {
-                    Debug.Log($"<color=cyan>[Landing Check]</color> 공중시간: {airborneTimer:F2}초 | 경사각: {slopeAngle:F1}°");
-                }
             }
 
             if (slopeAngle > maxSlopeAngleForLanding)
             {
-                if (showLandingDebug)
-                {
-                    Debug.Log($"<color=yellow>[Landing] 착지 무시 - 경사각 초과: {slopeAngle:F1}°</color>");
-                }
                 return;
             }
 
-            if (showLandingDebug)
-            {
-                Debug.Log($"<color=green>[Landing] 착지 효과 발동! 공중시간: {airborneTimer:F2}초, 경사각: {slopeAngle:F1}°</color>");
-            }
             OnLanded();
         }
-        
 
         public void SetDashing(bool dashing)
         {
             isDashing = dashing;
         }
-
-        
 
         protected override void FixedUpdate()
         {
@@ -302,13 +228,16 @@ namespace InfimaGames.LowPolyShooterPack
         {
             wasGroundedLastFrame = grounded;
             
-            if (jumpPressed && isSwimming)
+            if (jumpPressed)
             {
-                PerformSwimJump();
-            }
-            else if (jumpPressed && !isSwimming && CanPerformJump())
-            {
-                PerformJump();
+                if (isSwimming)
+                {
+                    PerformSwimJump();
+                }
+                else if (CanPerformJump())
+                {
+                    PerformJump();
+                }
             }
         }
 
@@ -325,43 +254,17 @@ namespace InfimaGames.LowPolyShooterPack
                 jumpPressed = true;
         }
 
-       
-
-        private void CheckWaterExit()
-        {
-            if (!isSwimming || currentWaterCollider == null)
-                return;
-
-            float playerY = transform.position.y;
-            
-            if (grounded && playerY > waterSurfaceY - exitWaterHeightThreshold)
-            {
-                ExitSwimmingMode();
-                Debug.Log($"<color=green>[Swimming] 경사로를 통해 물 밖으로 탈출! (높이: {playerY:F2})</color>");
-            }
-        }
-
         private void ExitSwimmingMode()
         {
             if (!isSwimming) return;
     
             isSwimming = false;
-            isSwimJumping = false;
-            swimJumpTimer = 0f;
             currentWaterCollider = null;
             
-            // ★ 중력 다시 켜기
             rigidBody.useGravity = true;
             rigidBody.linearDamping = 0f;
     
-            Vector3 vel = rigidBody.linearVelocity;
-            if (vel.y < 0)
-            {
-                vel.y = 0;
-            }
-            rigidBody.linearVelocity = vel;
-    
-            Debug.Log("<color=green>[Swimming] 수영 모드 비활성화! (중력 ON)</color>");
+            Debug.Log("<color=green>[Swimming] 수영 모드 비활성화!</color>");
         }
         #endregion
 
@@ -387,7 +290,7 @@ namespace InfimaGames.LowPolyShooterPack
             float speedMultiplier = PlayerStats.Instance.GetMoveSpeedMultiplier();
             
             if (playerCharacter.IsRunning())
-                movement *= speedRunning * currentSpeedMultiplier * speedMultiplier;
+                movement *= speedWalking * 1.5f * currentSpeedMultiplier * speedMultiplier;
             else
                 movement *= speedWalking * currentSpeedMultiplier * speedMultiplier;
 
@@ -411,7 +314,6 @@ namespace InfimaGames.LowPolyShooterPack
             vel.x = movement.x;
             vel.z = movement.z;
             
-            // ★ 점프 중이 아닐 때만 Y축 속도를 천천히 0으로
             if (!isSwimJumping)
             {
                 vel.y = Mathf.Lerp(vel.y, 0, Time.fixedDeltaTime * 3f);
@@ -429,6 +331,9 @@ namespace InfimaGames.LowPolyShooterPack
             isSwimJumping = true;
             swimJumpTimer = swimJumpDuration;
             
+            // 점프하면서 수영 모드 즉시 해제
+            ExitSwimmingMode();
+            
             Debug.Log("<color=cyan>[Swimming] 수영 점프 실행!</color>");
         }
 
@@ -445,13 +350,7 @@ namespace InfimaGames.LowPolyShooterPack
             rigidBody.AddForce(Vector3.up * jumpForce * jumpMultiplier, ForceMode.VelocityChange);
             
             currentJumpCount++;
-            
             airborneTimer = 0f;
-            
-            if (showLandingDebug)
-            {
-                Debug.Log($"<color=cyan>[Jump] {currentJumpCount}단 점프 실행! (최대: {PlayerStats.Instance.GetMaxJumpCount()})</color>");
-            }
         }
 
         private void PlayFootstepSounds()
@@ -561,11 +460,6 @@ namespace InfimaGames.LowPolyShooterPack
 
             float tiltRatio = Mathf.Clamp01(airborneTimer / maxAirTimeForTilt);
             float actualTiltAmount = maxLandingTiltAmount * tiltRatio;
-    
-            if (showLandingDebug)
-            {
-                Debug.Log($"<color=cyan>[Landing Tilt]</color> 공중시간: {airborneTimer:F2}초, 기울기: {actualTiltAmount:F2}도");
-            }
 
             float downDuration = landingDipDuration * 0.3f;
             while (elapsedTime < downDuration)
@@ -626,11 +520,13 @@ namespace InfimaGames.LowPolyShooterPack
         {
             if (((1 << other.gameObject.layer) & waterLayer) != 0)
             {
-                ExitSwimmingMode();
+                // 점프 중이 아닐 때만 수영 모드 해제
+                if (!isSwimJumping)
+                {
+                    ExitSwimmingMode();
+                }
             }
         }
         #endregion
     }
-    
-    
 }

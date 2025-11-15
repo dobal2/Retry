@@ -7,19 +7,37 @@ public class TargetAnchorBox : MonoBehaviour
 {
     public enum TargetType
     {
-        Enemy,
+        Enemy,       // HP, Damage 표시
+        Box,         // 여는데 필요한 에너지 표시
+        EnergyCore,  // 현재 레벨, 다음 레벨까지 필요한 것
         Ally,
         Item,
-        Objective,
-        Vehicle,
-        NPC,
-        Custom
+    }
+    
+    public enum BoundsSourceType
+    {
+        Renderer,
+        Collider,
+        Auto
     }
     
     [Header("Target Settings")]
     [SerializeField] private TargetType targetType = TargetType.Enemy;
     [SerializeField] private string displayName = "";
     [SerializeField] private bool alwaysShow = true;
+    
+    [Header("Bounds Settings")]
+    [SerializeField] private BoundsSourceType boundsSource = BoundsSourceType.Auto;
+    [SerializeField] private bool cacheBounds = true;
+    [SerializeField] private float boundsUpdateInterval = 0.1f;
+    [SerializeField] private bool autoFixBounds = true;
+    [SerializeField] private float minBoundsSize = 0.5f;
+    [SerializeField] private float maxBoundsSize = 50f;
+    
+    [Header("Manual Bounds Override")]
+    [SerializeField] private bool useManualCenter = false;
+    [SerializeField] private Vector3 manualCenterOffset = Vector3.zero;
+    [SerializeField] private Vector3 manualBoundsSize = Vector3.one * 2f;
     
     [Header("Box Style")]
     [SerializeField] private Color boxColor = Color.red;
@@ -30,12 +48,10 @@ public class TargetAnchorBox : MonoBehaviour
     
     [Header("Display Options")]
     [SerializeField] private bool showName = true;
-    [SerializeField] private bool showDamage = true;
-    [SerializeField] private bool showHealthText = false;
     
     [Header("Distance Settings")]
     [SerializeField] private bool fadeWithDistance = true;
-    [SerializeField] private float maxTextVisibleDistance;
+    [SerializeField] private float maxTextVisibleDistance = 50f;
     [SerializeField] private float maxVisibleDistance = 100f;
     [SerializeField] private float minVisibleDistance = 2f;
     
@@ -48,13 +64,18 @@ public class TargetAnchorBox : MonoBehaviour
     [SerializeField] private bool showOnlyInCameraView = false;
     [SerializeField] private float cameraViewAngle = 60f;
     
+    [Header("Performance Settings")]
+    [SerializeField] private bool useLateUpdate = true;
+    
+    [Header("Debug")]
+    [SerializeField] private bool showDebugGizmos = false;
+    
     private Camera mainCamera;
     private Canvas parentCanvas;
-    private RectTransform anchorBoxUI;
+    protected RectTransform anchorBoxUI;
     private Image[] borderLines;
     private TextMeshProUGUI nameText;
-    private TextMeshProUGUI healthText;
-    private TextMeshProUGUI damageText;
+    private TextMeshProUGUI infoText; // ★ 통합 정보 텍스트
     
     private Renderer targetRenderer;
     private Collider targetCollider;
@@ -64,6 +85,8 @@ public class TargetAnchorBox : MonoBehaviour
     private bool isForceAlphaActive = false;
     
     private Bounds lastValidBounds;
+    private Bounds cachedBounds;
+    private float lastBoundsUpdateTime;
     private bool isDying = false;
     
     private Color originalBoxColor;
@@ -77,9 +100,79 @@ public class TargetAnchorBox : MonoBehaviour
         targetCollider = GetComponent<Collider>();
         targetRenderer = GetComponentInChildren<Renderer>();
         
+        ValidateBounds();
         SetDefaultColorByType();
+        
         originalBoxColor = boxColor;
         AnchorBoxManager.Instance?.RegisterTarget(this);
+        
+        UpdateCachedBounds();
+    }
+    
+    private void SetDefaultColorByType()
+    {
+        switch (targetType)
+        {
+            case TargetType.Enemy:
+                if (boxColor == Color.red) boxColor = Color.red;
+                break;
+            case TargetType.Box:
+                if (boxColor == Color.red) boxColor = new Color(1f, 0.8f, 0f); // 골드색
+                break;
+            case TargetType.EnergyCore:
+                if (boxColor == Color.red) boxColor = Color.cyan;
+                break;
+            case TargetType.Ally:
+                if (boxColor == Color.red) boxColor = Color.green;
+                break;
+            case TargetType.Item:
+                if (boxColor == Color.red) boxColor = Color.yellow;
+                break;
+        }
+    }
+    
+    private void ValidateBounds()
+    {
+        Bounds testBounds = GetBoundsFromSource();
+        
+        if (testBounds.size.magnitude < 0.1f)
+        {
+            Debug.LogWarning($"{gameObject.name}: Bounds too small! Consider using Manual Bounds.");
+        }
+        
+        if (testBounds.size.magnitude > 100f)
+        {
+            Debug.LogWarning($"{gameObject.name}: Bounds too large! Check Renderer/Collider.");
+        }
+        
+        float distance = Vector3.Distance(testBounds.center, transform.position);
+        if (distance > 10f)
+        {
+            Debug.LogWarning($"{gameObject.name}: Bounds center far from object! Distance: {distance}m");
+        }
+        
+        if (targetCollider == null && targetRenderer == null)
+        {
+            Debug.LogWarning($"{gameObject.name}: No Collider or Renderer found! Using fallback bounds.");
+        }
+    }
+    
+    private void OnDrawGizmos()
+    {
+        if (!showDebugGizmos) return;
+        
+        Bounds bounds = GetBoundsFromSource();
+        
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireCube(bounds.center, bounds.size);
+        
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(transform.position, 0.2f);
+        
+        #if UNITY_EDITOR
+        UnityEditor.Handles.Label(transform.position + Vector3.up, 
+            $"{gameObject.name}\nBounds: {bounds.size}\nCenter: {bounds.center}");
+        #endif
     }
     
     private bool IsInCameraView()
@@ -97,13 +190,7 @@ public class TargetAnchorBox : MonoBehaviour
         if (!checkOcclusion) return true;
         if (targetCollider == null && targetRenderer == null) return true;
 
-        Bounds bounds;
-        if (targetRenderer != null)
-            bounds = targetRenderer.bounds;
-        else if (targetCollider != null)
-            bounds = targetCollider.bounds;
-        else
-            bounds = new Bounds(transform.position, Vector3.one);
+        Bounds bounds = GetCurrentBounds();
 
         Vector3[] checkPoints = new Vector3[raycastCount];
         checkPoints[0] = bounds.center;
@@ -147,30 +234,110 @@ public class TargetAnchorBox : MonoBehaviour
         return true;
     }
     
-    private void SetDefaultColorByType()
+    private void UpdateCachedBounds()
     {
-        if (boxColor != Color.red) return;
-        
-        switch (targetType)
+        cachedBounds = GetBoundsFromSource();
+        lastBoundsUpdateTime = Time.time;
+    }
+    
+    private Bounds GetBoundsFromSource()
+    {
+        if (useManualCenter)
         {
-            case TargetType.Enemy:
-                boxColor = Color.red;
+            return new Bounds(transform.position + manualCenterOffset, manualBoundsSize);
+        }
+        
+        Bounds bounds;
+        
+        switch (boundsSource)
+        {
+            case BoundsSourceType.Renderer:
+                if (targetRenderer != null)
+                    bounds = targetRenderer.bounds;
+                else
+                    bounds = new Bounds(transform.position, Vector3.one);
                 break;
-            case TargetType.Ally:
-                boxColor = Color.green;
+                
+            case BoundsSourceType.Collider:
+                if (targetCollider != null)
+                    bounds = targetCollider.bounds;
+                else
+                    bounds = new Bounds(transform.position, Vector3.one);
                 break;
-            case TargetType.Item:
-                boxColor = Color.yellow;
+                
+            case BoundsSourceType.Auto:
+                if (targetCollider != null)
+                    bounds = targetCollider.bounds;
+                else if (targetRenderer != null)
+                    bounds = targetRenderer.bounds;
+                else
+                    bounds = new Bounds(transform.position, Vector3.one);
                 break;
-            case TargetType.Objective:
-                boxColor = Color.cyan;
+                
+            default:
+                bounds = new Bounds(transform.position, Vector3.one);
                 break;
-            case TargetType.Vehicle:
-                boxColor = Color.magenta;
-                break;
-            case TargetType.NPC:
-                boxColor = Color.white;
-                break;
+        }
+        
+        if (autoFixBounds)
+        {
+            bounds = FixInvalidBounds(bounds);
+        }
+        
+        return bounds;
+    }
+    
+    private Bounds FixInvalidBounds(Bounds bounds)
+    {
+        Vector3 size = bounds.size;
+        Vector3 center = bounds.center;
+        
+        if (size.x < minBoundsSize) size.x = minBoundsSize;
+        if (size.y < minBoundsSize) size.y = minBoundsSize;
+        if (size.z < minBoundsSize) size.z = minBoundsSize;
+        
+        if (size.x > maxBoundsSize || size.y > maxBoundsSize || size.z > maxBoundsSize)
+        {
+            Debug.LogWarning($"{gameObject.name}: Bounds too large! {size}");
+            size = Vector3.one * 2f;
+            center = transform.position;
+        }
+        
+        float distanceFromObject = Vector3.Distance(center, transform.position);
+        if (distanceFromObject > maxBoundsSize)
+        {
+            Debug.LogWarning($"{gameObject.name}: Bounds center too far! {distanceFromObject}m");
+            center = transform.position;
+        }
+        
+        if (float.IsNaN(size.x) || float.IsInfinity(size.x) ||
+            float.IsNaN(center.x) || float.IsInfinity(center.x))
+        {
+            Debug.LogError($"{gameObject.name}: Invalid Bounds values!");
+            return new Bounds(transform.position, Vector3.one * 2f);
+        }
+        
+        return new Bounds(center, size);
+    }
+    
+    private Bounds GetCurrentBounds()
+    {
+        if (isDying)
+        {
+            return lastValidBounds;
+        }
+        
+        if (cacheBounds)
+        {
+            if (Time.time - lastBoundsUpdateTime > boundsUpdateInterval)
+            {
+                UpdateCachedBounds();
+            }
+            return cachedBounds;
+        }
+        else
+        {
+            return GetBoundsFromSource();
         }
     }
     
@@ -190,6 +357,7 @@ public class TargetAnchorBox : MonoBehaviour
         }
         
         isDying = false;
+        UpdateCachedBounds();
     }
 
     private void OnDestroy()
@@ -204,39 +372,29 @@ public class TargetAnchorBox : MonoBehaviour
     
     public void CreateUI(Transform uiParent)
     {
-        // ★ Canvas 참조 가져오기
         parentCanvas = uiParent.GetComponentInParent<Canvas>();
+        
+        if (parentCanvas == null)
+        {
+            Debug.LogError($"Canvas not found for {gameObject.name}!");
+            return;
+        }
         
         GameObject boxObj = new GameObject($"AnchorBox_{gameObject.name}");
         boxObj.transform.SetParent(uiParent, false);
         
         anchorBoxUI = boxObj.AddComponent<RectTransform>();
-        
-        // ★ Canvas 중앙을 기준으로 설정
-        if (parentCanvas != null && parentCanvas.renderMode == RenderMode.ScreenSpaceCamera)
-        {
-            anchorBoxUI.anchorMin = new Vector2(0.5f, 0.5f);
-            anchorBoxUI.anchorMax = new Vector2(0.5f, 0.5f);
-            anchorBoxUI.pivot = new Vector2(0.5f, 0.5f);
-        }
-        else
-        {
-            // Screen Space - Overlay
-            anchorBoxUI.anchorMin = Vector2.zero;
-            anchorBoxUI.anchorMax = Vector2.zero;
-            anchorBoxUI.pivot = new Vector2(0.5f, 0.5f);
-        }
+        anchorBoxUI.anchorMin = new Vector2(0.5f, 0.5f);
+        anchorBoxUI.anchorMax = new Vector2(0.5f, 0.5f);
+        anchorBoxUI.pivot = new Vector2(0.5f, 0.5f);
         
         CreateBorderLines();
         
         if (showName)
             CreateNameText();
         
-        if (showDamage)
-            CreateDamageText();
-        
-        if (showHealthText)
-            CreateHealthText();
+        // ★ 타입별 UI 생성
+        CreateInfoText();
     }
     
     private void CreateBorderLines()
@@ -273,46 +431,92 @@ public class TargetAnchorBox : MonoBehaviour
         textRect.anchoredPosition = new Vector2(0, 10);
     }
     
-    private void CreateDamageText()
+    // ★ 통합 정보 텍스트 생성 (타입별로 위치 조정)
+    private void CreateInfoText()
+{
+    GameObject textObj = Instantiate(AnchorBoxManager.Instance.textTemplate);
+    textObj.name = "InfoText";
+    textObj.transform.SetParent(anchorBoxUI, false);
+
+    infoText = textObj.GetComponent<TextMeshProUGUI>();
+    infoText.color = boxColor; // ★ boxColor 따라감
+    
+    RectTransform textRect = textObj.GetComponent<RectTransform>();
+    
+    // ★ 타입별 위치 및 스타일 조정
+    switch (targetType)
     {
-        GameObject textObj = Instantiate(AnchorBoxManager.Instance.textTemplate);
-        textObj.name = "DamageText";
-        textObj.transform.SetParent(anchorBoxUI, false);
-    
-        damageText = textObj.GetComponent<TextMeshProUGUI>();
-        damageText.color = Color.red;
-        damageText.alignment = TextAlignmentOptions.Left;
-    
-        RectTransform textRect = textObj.GetComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(1f, 0.5f);
-        textRect.anchorMax = new Vector2(1f, 0.5f);
-        textRect.pivot = new Vector2(0f, 0.5f);
-        textRect.sizeDelta = new Vector2(300, 20);
-        textRect.anchoredPosition = new Vector2(10, showHealthText ? -20 : 0);
+        case TargetType.Enemy:
+            infoText.alignment = TextAlignmentOptions.Left;
+            infoText.fontSize = 34; // ★ 14 → 18
+            textRect.anchorMin = new Vector2(1f, 0.5f);
+            textRect.anchorMax = new Vector2(1f, 0.5f);
+            textRect.pivot = new Vector2(0f, 0.5f);
+            textRect.sizeDelta = new Vector2(420, 60); // ★ 크기 증가
+            textRect.anchoredPosition = new Vector2(10, 0);
+            break;
+            
+        case TargetType.Box:
+            infoText.alignment = TextAlignmentOptions.Center;
+            infoText.fontSize = 30; // ★ 14 → 16
+            textRect.anchorMin = new Vector2(0.5f, 0f);
+            textRect.anchorMax = new Vector2(0.5f, 0f);
+            textRect.pivot = new Vector2(0.5f, 1f);
+            textRect.sizeDelta = new Vector2(400, 50); // ★ 크기 증가
+            textRect.anchoredPosition = new Vector2(0, -10);
+            break;
+            
+        case TargetType.EnergyCore:
+            // ★ Enemy처럼 왼쪽 정렬, 옆에 표시
+            infoText.alignment = TextAlignmentOptions.Left;
+            infoText.fontSize = 34; // ★ 16 → 18
+            textRect.anchorMin = new Vector2(1f, 0.5f);
+            textRect.anchorMax = new Vector2(1f, 0.5f);
+            textRect.pivot = new Vector2(0f, 0.5f);
+            textRect.sizeDelta = new Vector2(250, 70); // ★ 크기 증가
+            textRect.anchoredPosition = new Vector2(10, 0);
+            break;
+            
+        default:
+            infoText.alignment = TextAlignmentOptions.Center;
+            infoText.fontSize = 34;
+            textRect.anchorMin = new Vector2(0.5f, 0f);
+            textRect.anchorMax = new Vector2(0.5f, 0f);
+            textRect.pivot = new Vector2(0.5f, 1f);
+            textRect.sizeDelta = new Vector2(180, 40);
+            textRect.anchoredPosition = new Vector2(0, -10);
+            break;
     }
+}
     
-    private void CreateHealthText()
+    private void LateUpdate()
     {
-        GameObject hpTextObj = Instantiate(AnchorBoxManager.Instance.textTemplate);
-        hpTextObj.name = "HPText";
-        hpTextObj.transform.SetParent(anchorBoxUI, false);
-    
-        healthText = hpTextObj.GetComponent<TextMeshProUGUI>();
-        healthText.color = boxColor;
-        healthText.alignment = TextAlignmentOptions.Left;
-        healthText.text = "HP: 100";
-    
-        RectTransform textRect = hpTextObj.GetComponent<RectTransform>();
-        textRect.anchorMin = new Vector2(1f, 0.5f);
-        textRect.anchorMax = new Vector2(1f, 0.5f);
-        textRect.pivot = new Vector2(0f, 0.5f);
-        textRect.sizeDelta = new Vector2(120, 20);
-        textRect.anchoredPosition = new Vector2(10, 45);
+        if (!useLateUpdate) return;
+        
+        if (mainCamera == null)
+        {
+            mainCamera = Camera.main;
+        }
+        
+        if (anchorBoxUI == null || mainCamera == null) return;
+        
+        if (!gameObject.activeInHierarchy || this == null)
+        {
+            if (anchorBoxUI != null)
+            {
+                Destroy(anchorBoxUI.gameObject);
+                anchorBoxUI = null;
+            }
+            return;
+        }
+        
+        UpdateAnchorBox();
     }
     
     private void Update()
     {
-        // ★ Camera 재확인
+        if (useLateUpdate) return;
+        
         if (mainCamera == null)
         {
             mainCamera = Camera.main;
@@ -366,6 +570,12 @@ public class TargetAnchorBox : MonoBehaviour
         
         Bounds screenBounds = GetScreenBoundsForCanvasMode();
         
+        if (screenBounds.size.magnitude > 10000f || screenBounds.size.magnitude < 1f)
+        {
+            anchorBoxUI.gameObject.SetActive(false);
+            return;
+        }
+        
         Vector2 boxSize = new Vector2(screenBounds.size.x, screenBounds.size.y);
         anchorBoxUI.sizeDelta = boxSize;
         anchorBoxUI.anchoredPosition = new Vector2(screenBounds.center.x, screenBounds.center.y);
@@ -375,17 +585,8 @@ public class TargetAnchorBox : MonoBehaviour
         else
             UpdateFullBorderLines(boxSize);
         
-        if (damageText != null && enemyAI != null)
-        {
-            float enemyDamage = enemyAI.GetDamage();
-            damageText.text = $"Damage: {Mathf.RoundToInt(enemyDamage)}";
-        }
-        
-        if (healthText != null && enemyAI != null)
-        {
-            float currentHealth = enemyAI.GetHealth();
-            healthText.text = $"HP: {Mathf.RoundToInt(currentHealth)}";
-        }
+        // ★ 타입별 정보 업데이트
+        UpdateTypeSpecificInfo();
         
         if (isForceAlphaActive)
         {
@@ -401,30 +602,126 @@ public class TargetAnchorBox : MonoBehaviour
         }
     }
     
-    private Bounds GetScreenBoundsForCanvasMode()
+    // ★ 타입별 정보 업데이트
+    private void UpdateTypeSpecificInfo()
     {
-        Bounds worldBounds;
-    
-        if (isDying)
+        if (infoText == null) return;
+        
+        switch (targetType)
         {
-            worldBounds = lastValidBounds;
+            case TargetType.Enemy:
+                UpdateEnemyInfo();
+                break;
+            case TargetType.Box:
+                UpdateBoxInfo();
+                break;
+            case TargetType.EnergyCore:
+                UpdateEnergyCoreInfo();
+                break;
+            default:
+                infoText.text = "";
+                break;
+        }
+    }
+    
+    private void UpdateEnemyInfo()
+    {
+        if (enemyAI != null)
+        {
+            float currentHealth = enemyAI.GetHealth();
+            float enemyDamage = enemyAI.GetDamage();
+        
+            string hpColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
+            infoText.text = $"<color=#{hpColorHex}>HP: {Mathf.RoundToInt(currentHealth)}</color>\n<color=#FF8800>Damage: {Mathf.RoundToInt(enemyDamage)}</color>";
         }
         else
         {
-            // ★ Collider 우선 사용
-            if (targetCollider != null)
+            string hpColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
+            infoText.text = $"<color=#{hpColorHex}>HP: ???</color>\n<color=#FF8800>Damage: ???</color>";
+        }
+    }
+
+    
+    private void UpdateBoxInfo()
+    {
+        var boxComponent = GetComponent<Box>();
+    
+        if (boxComponent != null)
+        {
+            int requiredEnergy = boxComponent.requiredEnergy;
+            int playerEnergy = PlayerStats.Instance != null ? PlayerStats.Instance.GetEnergy() : 0;
+        
+            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
+        
+            if (playerEnergy >= requiredEnergy)
             {
-                worldBounds = targetCollider.bounds;
-            }
-            else if (targetRenderer != null)
-            {
-                worldBounds = targetRenderer.bounds;
+                infoText.text = $"<color=#{boxColorHex}>[F] Open Box\nEnergy: {playerEnergy}/{requiredEnergy}</color>";
             }
             else
             {
-                worldBounds = new Bounds(transform.position, Vector3.one);
+                infoText.text = $"<color=#{boxColorHex}>Locked Box</color>\n<color=#FF0000>Energy: {playerEnergy}/{requiredEnergy}</color>";
             }
         }
+        else
+        {
+            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
+            infoText.text = $"<color=#{boxColorHex}>[E] Open Box\nEnergy: ?/?</color>";
+        }
+    }
+    
+    private void UpdateEnergyCoreInfo()
+    {
+        if (ForceFieldManager.Instance != null)
+        {
+            int currentLevel = ForceFieldManager.Instance.GetCurrentLevel();
+            int maxLevel = ForceFieldManager.Instance.GetMaxLevel();
+        
+            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
+        
+            if (currentLevel >= maxLevel)
+            {
+                infoText.text = $"Level {currentLevel}\n<color=#00FF00>MAX LEVEL</color></color>";
+            }
+            else
+            {
+                int requiredEnergy = ForceFieldManager.Instance.GetRequiredEnergyForNextLevel();
+                int playerEnergy = PlayerStats.Instance != null ? PlayerStats.Instance.GetEnergy() : 0;
+            
+                if (playerEnergy >= requiredEnergy)
+                {
+                    infoText.text = $"Level {currentLevel}</color>\n<color=#00FF00>[F] Upgrade: {playerEnergy}/{requiredEnergy}</color> Energy";
+                }
+                else
+                {
+                    infoText.text = $"Level {currentLevel}</color>\n<color=#FF0000>Require Energy: {playerEnergy}/{requiredEnergy}</color>";
+                }
+            }
+        }
+        else
+        {
+            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
+            infoText.text = $"<color=#{boxColorHex}>Energy Core\nInitializing...</color>";
+        }
+    }
+    
+    // ★ 레벨별 필요 에너지 계산 (ForceFieldManager와 연동)
+    private int GetRequiredEnergyForNextLevel(int currentLevel)
+    {
+        // 레벨별 필요 에너지 (예시)
+        // Level 1→2: 100, Level 2→3: 200, Level 3→4: 300, ...
+        return currentLevel * 100;
+    }
+    
+    public void CacheBoundsForDeath()
+    {
+        lastValidBounds = GetBoundsFromSource(); // 현재 Bounds 저장
+        isDying = true; // 죽는 중 플래그 설정
+        Debug.Log($"{gameObject.name}: Bounds cached for death - {lastValidBounds.size}");
+    }
+    
+    private Bounds GetScreenBoundsForCanvasMode()
+    {
+        Bounds worldBounds = GetCurrentBounds();
 
         Vector3[] corners = new Vector3[8];
         corners[0] = worldBounds.min;
@@ -460,10 +757,8 @@ public class TargetAnchorBox : MonoBehaviour
         return new Bounds(center, size);
     }
     
-    // ★ World 좌표를 Canvas 좌표로 변환
     private Vector2 WorldToCanvasPoint(Vector3 worldPosition)
     {
-        // ★ mainCamera null 체크
         if (mainCamera == null)
         {
             mainCamera = Camera.main;
@@ -474,25 +769,38 @@ public class TargetAnchorBox : MonoBehaviour
             }
         }
         
-        if (parentCanvas == null)
+        if (parentCanvas == null || parentCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
         {
             Vector3 screenPoint = mainCamera.WorldToScreenPoint(worldPosition);
-            return new Vector2(screenPoint.x, screenPoint.y);
+            return new Vector2(
+                screenPoint.x - Screen.width * 0.5f,
+                screenPoint.y - Screen.height * 0.5f
+            );
         }
         
         RectTransform canvasRect = parentCanvas.GetComponent<RectTransform>();
-        
-        // World → Screen
         Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPosition);
         
-        // Screen → Canvas Local Point
+        if (screenPos.z < 0)
+        {
+            return Vector2.zero;
+        }
+        
         Vector2 canvasPoint;
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+        bool success = RectTransformUtility.ScreenPointToLocalPointInRectangle(
             canvasRect, 
             screenPos, 
-            parentCanvas.renderMode == RenderMode.ScreenSpaceCamera ? parentCanvas.worldCamera : null,
+            parentCanvas.worldCamera,
             out canvasPoint
         );
+        
+        if (!success)
+        {
+            return new Vector2(
+                screenPos.x - Screen.width * 0.5f,
+                screenPos.y - Screen.height * 0.5f
+            );
+        }
         
         return canvasPoint;
     }
@@ -505,13 +813,7 @@ public class TargetAnchorBox : MonoBehaviour
         if (alpha < 1f && !isDying)
         {
             isDying = true;
-            // ★ Collider 우선으로 저장
-            if (targetCollider != null)
-                lastValidBounds = targetCollider.bounds;
-            else if (targetRenderer != null)
-                lastValidBounds = targetRenderer.bounds;
-            else
-                lastValidBounds = new Bounds(transform.position, Vector3.one);
+            lastValidBounds = GetCurrentBounds();
         }
     }
     
@@ -587,18 +889,11 @@ public class TargetAnchorBox : MonoBehaviour
             nameText.color = textColor;
         }
         
-        if (healthText != null)
+        if (infoText != null)
         {
             Color textColor = boxColor;
-            textColor.a = healthText.color.a;
-            healthText.color = textColor;
-        }
-        
-        if (damageText != null)
-        {
-            Color textColor = boxColor;
-            textColor.a = damageText.color.a;
-            damageText.color = textColor;
+            textColor.a = infoText.color.a;
+            infoText.color = textColor;
         }
     }
     
@@ -673,18 +968,11 @@ public class TargetAnchorBox : MonoBehaviour
             nameText.color = textColor;
         }
         
-        if (damageText != null)
+        if (infoText != null)
         {
-            Color textColor = damageText.color;
+            Color textColor = infoText.color;
             textColor.a = alpha;
-            damageText.color = textColor;
-        }
-        
-        if (healthText != null)
-        {
-            Color textColor = healthText.color;
-            textColor.a = alpha;
-            healthText.color = textColor;
+            infoText.color = textColor;
         }
     }
     
@@ -692,14 +980,23 @@ public class TargetAnchorBox : MonoBehaviour
     {
         boxColor = color;
         originalBoxColor = color;
-        foreach (var line in borderLines)
+        if (borderLines != null)
         {
-            if (line != null) line.color = color;
+            foreach (var line in borderLines)
+            {
+                if (line != null) line.color = color;
+            }
         }
     }
     
     public void SetVisibility(bool visible)
     {
         alwaysShow = visible;
+    }
+    
+    public void SetBoundsSource(BoundsSourceType sourceType)
+    {
+        boundsSource = sourceType;
+        UpdateCachedBounds();
     }
 }

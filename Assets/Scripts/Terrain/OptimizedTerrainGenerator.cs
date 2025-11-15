@@ -19,8 +19,9 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     
     [Header("Falloff Settings")]
     [SerializeField] private bool useFalloff = true;
-    [SerializeField] private float falloffStrength = 3f; // 가장자리 감소 강도
-    [SerializeField] private float falloffShift = 2.2f; // 감소 시작 지점
+    [SerializeField] private float falloffStrength = 3f;
+    [SerializeField] private float falloffShift = 2.2f;
+    [SerializeField] private float centerFalloffReduction = 0.7f;
     
     [Header("Visual Settings")]
     [SerializeField] private Gradient terrainGradient;
@@ -29,6 +30,11 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
     [Header("Grass")] 
     [SerializeField] private bool GenerateGrass;
+    [SerializeField] private float initialGrassRadius = 150f; // ★ 처음 생성 반경
+    [SerializeField] private float dynamicGrassDistance = 120f; // ★ 플레이어 근처 생성 거리
+    [SerializeField] private float grassCheckInterval = 2f; // ★ 체크 주기
+    [SerializeField] private int maxDynamicChunksPerUpdate = 3; // ★ 한 번에 최대 N개 청크만 생성
+    [SerializeField] private bool sortByDistance = true;
     
     [Header("Water Settings")]
     [SerializeField] private bool enableWater = true;
@@ -43,16 +49,25 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private Dictionary<Vector2Int, TerrainChunk> activeChunks = new Dictionary<Vector2Int, TerrainChunk>();
     private Dictionary<Vector2Int, ChunkData> chunkDataCache = new Dictionary<Vector2Int, ChunkData>();
     private Queue<TerrainChunk> chunkPool = new Queue<TerrainChunk>();
-    [SerializeField]private Transform viewer;
+    [SerializeField] private Transform viewer;
     private Texture2D gradientTexture;
     private float lastUpdateTime;
     private Vector2Int lastViewerChunk;
     private GrassGenerator grassGenerator;
     private GameObject waterPlane;
     
-    
     [Header("Object Placement")]
     [SerializeField] private GameObject energyCore;
+    [SerializeField] private GameObject terrainScanner;
+    [SerializeField] private GameObject boxPrefab;
+    
+    [SerializeField] private float boxDensity = 0.005f;
+    [SerializeField] private float minBoxHeight = 0.5f;
+    [SerializeField] private float centerExclusionRadius = 30f;
+    [SerializeField] private float minBoxSpacing = 8f;
+    [SerializeField] private int maxConsecutiveFailures = 1000;
+
+    private List<Vector3> spawnedBoxPositions = new List<Vector3>();
     
     [Header("Seed Settings")]
     [SerializeField] private bool useRandomSeed = true;
@@ -60,41 +75,51 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private int numericSeed;
     
     private float[,] falloffMap;
+    
+    // ★ 동적 풀 생성용
+    private float lastGrassCheckTime;
+    private HashSet<Vector2Int> processedGrassChunks = new HashSet<Vector2Int>();
+    private bool isInitialGrassComplete = false;
+
+    public struct GrassChunkInfo
+    {
+        public Vector2Int coord;
+        public ChunkData data;
+        public Vector3 position;
+        public Quaternion rotation;
+        public Vector3 scale;
+    }
 
     private void Start()
     {
         if (useRandomSeed || string.IsNullOrEmpty(seedString))
         {
-            seedString = GenerateRandomSeedString(16); // 16자리
+            seedString = GenerateRandomSeedString(16);
             Debug.Log($"🌍 World Seed: {seedString}");
         }
-    
-        // ★ 문자열 시드를 숫자로 변환
+
         numericSeed = SeedStringToInt(seedString);
         Debug.Log($"Numeric seed: {numericSeed}");
-        
+    
         grassGenerator = GetComponent<GrassGenerator>();
-        
+    
         if (grassGenerator == null)
         {
             Debug.LogWarning("GrassGenerator component not found! Grass will not be generated.");
         }
-        
+    
         mapSize = worldSizeInChunks * chunkSize;
-        
-        // Falloff 맵 생성
+    
         if (useFalloff)
         {
             GenerateFalloffMap();
         }
-        
+    
         CreateGradientTexture();
         SetupMaterial();
-        
+    
         GenerateWorld();
-        
-
-        
+    
         if (enableWater && waterMaterial != null)
         {
             CreateWaterPlane();
@@ -108,8 +133,95 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             UpdateVisibleChunks();
             lastUpdateTime = Time.time;
         }
+        
+        // ★ 동적 풀 생성 (초기 생성 완료 후)
+        if (isInitialGrassComplete && GenerateGrass && grassGenerator != null && 
+            Time.time - lastGrassCheckTime > grassCheckInterval)
+        {
+            CheckAndGenerateNearbyGrass();
+            lastGrassCheckTime = Time.time;
+        }
     }
     
+    // ★ GameManager에서 플레이어 설정
+    public void SetPlayer(Transform player)
+    {
+        viewer = player;
+        Debug.Log($"[TerrainGenerator] Player set: {player.name}");
+    }
+    
+    // ★ 플레이어 근처 청크에 풀 동적 생성
+    private async void CheckAndGenerateNearbyGrass()
+{
+    if (viewer == null) return;
+    
+    List<GrassChunkInfo> chunksToGenerate = new List<GrassChunkInfo>();
+    
+    // ★ 1단계: 생성 가능한 청크 수집
+    foreach (var kvp in chunkDataCache)
+    {
+        Vector2Int coord = kvp.Key;
+        
+        if (processedGrassChunks.Contains(coord)) continue;
+        
+        if (activeChunks.TryGetValue(coord, out TerrainChunk chunk))
+        {
+            float distanceFromPlayer = Vector3.Distance(chunk.transform.position, viewer.position);
+            
+            if (distanceFromPlayer <= dynamicGrassDistance)
+            {
+                chunksToGenerate.Add(new GrassChunkInfo
+                {
+                    coord = coord,
+                    data = kvp.Value,
+                    position = chunk.transform.position,
+                    rotation = chunk.transform.rotation,
+                    scale = chunk.transform.localScale
+                });
+            }
+        }
+    }
+    
+    if (chunksToGenerate.Count == 0) return;
+    
+    // ★ 2단계: 가까운 것부터 정렬
+    if (sortByDistance)
+    {
+        chunksToGenerate.Sort((a, b) =>
+        {
+            float distA = Vector3.Distance(a.position, viewer.position);
+            float distB = Vector3.Distance(b.position, viewer.position);
+            return distA.CompareTo(distB);
+        });
+    }
+    
+    // ★ 3단계: 제한된 개수만 생성
+    int processCount = Mathf.Min(maxDynamicChunksPerUpdate, chunksToGenerate.Count);
+    
+    Debug.Log($"<color=cyan>[Dynamic Grass] Processing {processCount}/{chunksToGenerate.Count} chunks near player...</color>");
+    
+    for (int i = 0; i < processCount; i++)
+    {
+        GrassChunkInfo info = chunksToGenerate[i];
+        
+        // 생성
+        grassGenerator.GenerateGrassForChunkOptimized(info);
+        processedGrassChunks.Add(info.coord);
+        
+        // ★ 4단계: 프레임 분산 (1개 생성할 때마다 yield)
+        await Task.Yield();
+    }
+    
+    // ★ 5단계: 적용 (한 번에)
+    await grassGenerator.ApplyAdditionalGrass();
+    
+    // ★ 6단계: 남은 청크가 있으면 알림
+    int remainingChunks = chunksToGenerate.Count - processCount;
+    if (remainingChunks > 0)
+    {
+        Debug.Log($"<color=yellow>[Dynamic Grass] {remainingChunks} chunks deferred to next update</color>");
+    }
+}
     private string GenerateRandomSeedString(int length)
     {
         System.Text.StringBuilder result = new System.Text.StringBuilder(length);
@@ -117,19 +229,17 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     
         for (int i = 0; i < length; i++)
         {
-            result.Append(random.Next(0, 10)); // 0~9
+            result.Append(random.Next(0, 10));
         }
     
         return result.ToString();
     }
-
 
     private int SeedStringToInt(string seed)
     {
         if (string.IsNullOrEmpty(seed))
             return 0;
     
-        // FNV-1a 해시 알고리즘 (안정적)
         const uint FNV_prime = 16777619;
         uint hash = 2166136261;
     
@@ -148,59 +258,57 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     
         if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 1000f, LayerMask.GetMask("Ground")))
         {
-            GameObject obj = Instantiate(energyCore, hit.point + new Vector3(0,3,0), Quaternion.identity);
+            GameObject obj = Instantiate(energyCore, hit.point + new Vector3(0, 3, 0), Quaternion.identity);
             obj.transform.up = hit.normal;
             Debug.Log($"Center object placed at height: {hit.point.y}");
         }
     }
+    
+    private void PlaceTerrainScanner()
+    {
+        Vector3 rayStart = new Vector3(0, 100f, 0);
+    
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 1000f, LayerMask.GetMask("Ground")))
+        {
+            GameObject obj = Instantiate(terrainScanner, hit.point + new Vector3(0, 1, 0), Quaternion.identity);
+            obj.transform.up = hit.normal;
+        }
+    }
 
-    // ★ Falloff 맵 생성
-    // ★ Falloff 맵 생성 (더 강력하게)
-    // ★ Falloff 맵 생성 (완전히 새로 작성)
     private void GenerateFalloffMap()
     {
         int totalSize = worldSizeInChunks * chunkSize + 1;
         falloffMap = new float[totalSize, totalSize];
-    
-        Debug.Log($"Generating falloff map: {totalSize}x{totalSize}");
-    
+
         for (int y = 0; y < totalSize; y++)
         {
             for (int x = 0; x < totalSize; x++)
             {
-                // 0~1 범위로 정규화 (중심이 0.5, 가장자리가 0 또는 1)
                 float xNorm = x / (float)(totalSize - 1);
                 float yNorm = y / (float)(totalSize - 1);
             
-                // 중심으로부터의 거리 (0~1 범위, 중심이 0, 가장자리가 1)
-                float distX = Mathf.Abs(xNorm * 2 - 1); // 0~1
-                float distY = Mathf.Abs(yNorm * 2 - 1); // 0~1
+                float distX = Mathf.Abs(xNorm * 2 - 1);
+                float distY = Mathf.Abs(yNorm * 2 - 1);
             
-                // 사각형 falloff (더 예측 가능)
                 float value = Mathf.Max(distX, distY);
-            
-                falloffMap[x, y] = Evaluate(value);
+                
+                float centerDist = Mathf.Sqrt(
+                    Mathf.Pow(xNorm - 0.5f, 2) + 
+                    Mathf.Pow(yNorm - 0.5f, 2)
+                ) * 2f;
+                
+                float centerProtection = Mathf.Lerp(centerFalloffReduction, 1f, centerDist);
+                
+                falloffMap[x, y] = Evaluate(value) * centerProtection;
             }
         }
-    
-        // 디버그 출력
-        Debug.Log($"Falloff map complete.");
-        Debug.Log($"Center (should be ~0): {falloffMap[totalSize/2, totalSize/2]:F3}");
-        Debug.Log($"Edge (should be ~1): {falloffMap[0, 0]:F3}");
-        Debug.Log($"Mid (should be ~0.5): {falloffMap[totalSize/4, totalSize/2]:F3}");
+
+        Debug.Log($"Falloff map complete with center protection.");
     }
 
-// ★ Falloff 곡선 (더 간단하고 강력하게)
     private float Evaluate(float value)
     {
-        // value는 0~1 (중심에서 가장자리로)
-    
-        // 방법 1: 간단한 제곱 (추천)
         return Mathf.Pow(value, falloffStrength);
-    
-        // 방법 2: Smoothstep (더 부드러움)
-        // float t = Mathf.SmoothStep(0, 1, value);
-        // return Mathf.Pow(t, falloffStrength);
     }
 
     private void CreateWaterPlane()
@@ -226,22 +334,16 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             renderer.material = waterMaterial;
         }
     
-        // ★ 기존 MeshCollider 제거
         MeshCollider meshCollider = waterPlane.GetComponent<MeshCollider>();
         if (meshCollider != null)
         {
             Destroy(meshCollider);
         }
     
-        // ★ BoxCollider 추가 (Trigger로 설정)
         BoxCollider boxCollider = waterPlane.AddComponent<BoxCollider>();
         boxCollider.isTrigger = true;
-    
-        // ★ BoxCollider 크기 조정 (Plane은 10x10 크기이므로 스케일에 맞춰 조정)
         boxCollider.center = Vector3.zero;
-        boxCollider.size = new Vector3(10f, 0.1f, 10f); // 얇은 박스
-    
-        Debug.Log($"Water plane created at height {waterLevel} with size {mapSize}x{mapSize}");
+        boxCollider.size = new Vector3(10f, 0.1f, 10f);
     }
 
     private void CreateGradientTexture()
@@ -275,7 +377,8 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private async void GenerateWorld()
     {
         LoadingUI.Instance?.ShowLoading("Generating Terrain...");
-    
+        await Task.Yield();
+
         System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         if (useMultithreading)
@@ -284,24 +387,41 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         }
         else
         {
-            GenerateWorldSingleThreaded();
+            await GenerateWorldSingleThreaded();
         }
 
         stopwatch.Stop();
-    
-        await Task.Delay(500);
-        LoadingUI.Instance?.HideLoading();
-        await Task.Delay(100);
+
+        LoadingUI.Instance?.UpdateProgress(1f, "Complete!");
+        await Task.Delay(300);
     
         if (energyCore != null)
         {
             PlaceEnergyCoreObject();
         }
-        
+
+        // if (terrainScanner != null)
+        // {
+        //     PlaceTerrainScanner();
+        // }
+    
+        if (boxPrefab != null)
+        {
+            LoadingUI.Instance?.UpdateProgress(1f, "Placing objects...");
+            await Task.Yield();
+            await Task.Delay(100);
+            PlaceBoxes();
+        }
+    
         if (GameManager.Instance != null)
         {
             GameManager.Instance.OnTerrainGenerationComplete();
         }
+    
+        await Task.Delay(200);
+        LoadingUI.Instance?.HideLoading();
+    
+        Debug.Log($"Terrain generation complete in {stopwatch.ElapsedMilliseconds}ms");
     }
 
     private async Task GenerateWorldMultithreaded()
@@ -311,7 +431,8 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         int halfSize = worldSizeInChunks / 2;
         int totalChunks = worldSizeInChunks * worldSizeInChunks;
 
-        LoadingUI.Instance?.UpdateProgress(0.1f, "Generating chunk data...");
+        LoadingUI.Instance?.UpdateProgress(0.05f, "Generating chunk data...");
+        await Task.Yield();
 
         for (int x = -halfSize; x < halfSize; x++)
         {
@@ -324,41 +445,114 @@ public class OptimizedTerrainGenerator : MonoBehaviour
 
         ChunkData[] results = await Task.WhenAll(tasks);
 
-        LoadingUI.Instance?.UpdateProgress(0.3f, "Creating terrain meshes...");
+        LoadingUI.Instance?.UpdateProgress(0.25f, "Creating terrain meshes...");
 
         int processedChunks = 0;
         foreach (ChunkData data in results)
         {
             CreateChunkFromData(data, false);
-            
             processedChunks++;
-            float meshProgress = 0.3f + (processedChunks / (float)totalChunks) * 0.4f;
-            LoadingUI.Instance?.UpdateProgress(meshProgress, $"Creating terrain... {processedChunks}/{totalChunks}");
             
-            if (processedChunks % 10 == 0)
+            if (processedChunks % 50 == 0)
             {
+                float meshProgress = 0.25f + (processedChunks / (float)totalChunks) * 0.45f;
+                LoadingUI.Instance?.UpdateProgress(meshProgress, $"Creating terrain... {processedChunks}/{totalChunks}");
                 await Task.Yield();
             }
         }
 
         UpdateMaterialHeightBounds();
 
-        if (GenerateGrass)
-        {
-            LoadingUI.Instance?.UpdateProgress(0.7f, "Generating grass...");
+        LoadingUI.Instance?.UpdateProgress(0.7f, "Terrain ready!");
+        Debug.Log("=== TERRAIN READY ===");
         
-            if (grassGenerator != null)
-            {
-                await GenerateAllGrass();
-                grassGenerator.ApplyAllGrass();
-            }
-
-            LoadingUI.Instance?.UpdateProgress(1f, "Complete!");
-            await Task.Delay(300);    
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnTerrainReady();
         }
+
+        // ✅ 풀 생성 - 중앙만!
+        if (GenerateGrass && grassGenerator != null)
+        {
+            LoadingUI.Instance?.UpdateProgress(0.75f, "Generating grass (center)...");
+            
+            await GenerateInitialGrassOnly();
+            
+            LoadingUI.Instance?.UpdateProgress(0.85f, "Applying grass...");
+            Debug.Log("=== Applying initial grass ===");
+            
+            await grassGenerator.ApplyInitialGrass();
+            
+            isInitialGrassComplete = true; // ★ 초기 풀 완료
+            
+            LoadingUI.Instance?.UpdateProgress(0.95f, "Almost ready...");
+            
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.OnAlmostReady();
+            }
+            
+            await Task.Delay(200);
+        }
+        else
+        {
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.OnAlmostReady();
+            }
+        }
+        
+        LoadingUI.Instance?.UpdateProgress(0.99f, "Complete!");
     }
 
-    private void GenerateWorldSingleThreaded()
+    // ✅ 초기 생성 (중앙만)
+    private async Task GenerateInitialGrassOnly()
+    {
+        int totalChunks = chunkDataCache.Count;
+        int processedChunks = 0;
+        int skippedChunks = 0;
+        
+        Debug.Log($"Generating grass for center area (radius: {initialGrassRadius}m)...");
+
+        foreach (var kvp in chunkDataCache)
+        {
+            if (activeChunks.TryGetValue(kvp.Key, out TerrainChunk chunk))
+            {
+                float distanceFromCenter = Vector3.Distance(chunk.transform.position, Vector3.zero);
+                
+                if (distanceFromCenter <= initialGrassRadius)
+                {
+                    GrassChunkInfo info = new GrassChunkInfo
+                    {
+                        coord = kvp.Key,
+                        data = kvp.Value,
+                        position = chunk.transform.position,
+                        rotation = chunk.transform.rotation,
+                        scale = chunk.transform.localScale
+                    };
+                    
+                    grassGenerator.GenerateGrassForChunkOptimized(info);
+                    processedGrassChunks.Add(kvp.Key); // ★ 완료 표시
+                    processedChunks++;
+                }
+                else
+                {
+                    skippedChunks++;
+                }
+            }
+            
+            if ((processedChunks + skippedChunks) % 10 == 0)
+            {
+                float progress = 0.75f + ((processedChunks + skippedChunks) / (float)totalChunks) * 0.1f;
+                LoadingUI.Instance?.UpdateProgress(progress, $"Grass... {processedChunks}/{totalChunks}");
+                await Task.Yield();
+            }
+        }
+
+        Debug.Log($"<color=green>✓ Initial grass: {processedChunks} generated, {skippedChunks} deferred</color>");
+    }
+
+    private async Task GenerateWorldSingleThreaded()
     {
         int halfSize = worldSizeInChunks / 2;
         int totalChunks = worldSizeInChunks * worldSizeInChunks;
@@ -375,77 +569,152 @@ public class OptimizedTerrainGenerator : MonoBehaviour
                 CreateChunkFromData(data, false);
 
                 currentChunk++;
-                float progress = 0.1f + (currentChunk / (float)totalChunks) * 0.6f;
-                LoadingUI.Instance?.UpdateProgress(progress, $"Creating terrain... {currentChunk}/{totalChunks}");
-            }
-        }
-
-        UpdateMaterialHeightBounds();
-
-        LoadingUI.Instance?.UpdateProgress(0.7f, "Generating grass...");
-        
-        if (grassGenerator != null)
-        {
-            GenerateAllGrassSync();
-            grassGenerator.ApplyAllGrass();
-        }
-
-        LoadingUI.Instance?.UpdateProgress(1f, "Complete!");
-    }
-
-    private async Task GenerateAllGrass()
-    {
-        int totalChunks = chunkDataCache.Count;
-        int processedChunks = 0;
-
-        Debug.Log($"Starting grass generation for {totalChunks} chunks...");
-
-        foreach (var kvp in chunkDataCache)
-        {
-            Vector2Int coord = kvp.Key;
-            ChunkData data = kvp.Value;
-
-            if (activeChunks.TryGetValue(coord, out TerrainChunk chunk))
-            {
-                grassGenerator.GenerateGrassForChunk(coord, data, chunk.transform);
                 
-                processedChunks++;
-                float progress = 0.7f + (processedChunks / (float)totalChunks) * 0.3f;
-                LoadingUI.Instance?.UpdateProgress(progress, $"Generating grass... {processedChunks}/{totalChunks}");
-                
-                if (processedChunks % 10 == 0)
+                if (currentChunk % 50 == 0)
                 {
+                    float progress = 0.1f + (currentChunk / (float)totalChunks) * 0.6f;
+                    LoadingUI.Instance?.UpdateProgress(progress, $"Creating terrain... {currentChunk}/{totalChunks}");
                     await Task.Yield();
                 }
             }
         }
 
-        Debug.Log($"Grass generation complete! Total chunks: {processedChunks}");
-    }
+        UpdateMaterialHeightBounds();
 
-    private void GenerateAllGrassSync()
-    {
-        int totalChunks = chunkDataCache.Count;
-        int processedChunks = 0;
-
-        Debug.Log($"Starting grass generation for {totalChunks} chunks...");
-
-        foreach (var kvp in chunkDataCache)
+        LoadingUI.Instance?.UpdateProgress(0.7f, "Terrain ready!");
+        
+        if (GameManager.Instance != null)
         {
-            Vector2Int coord = kvp.Key;
-            ChunkData data = kvp.Value;
+            GameManager.Instance.OnTerrainReady();
+        }
 
-            if (activeChunks.TryGetValue(coord, out TerrainChunk chunk))
+        if (GenerateGrass && grassGenerator != null)
+        {
+            LoadingUI.Instance?.UpdateProgress(0.75f, "Generating grass...");
+            
+            await GenerateInitialGrassOnly();
+            
+            LoadingUI.Instance?.UpdateProgress(0.9f, "Applying grass...");
+            await grassGenerator.ApplyInitialGrass();
+            
+            isInitialGrassComplete = true;
+            
+            if (GameManager.Instance != null)
             {
-                grassGenerator.GenerateGrassForChunk(coord, data, chunk.transform);
-                
-                processedChunks++;
-                float progress = 0.7f + (processedChunks / (float)totalChunks) * 0.3f;
-                LoadingUI.Instance?.UpdateProgress(progress, $"Generating grass... {processedChunks}/{totalChunks}");
+                GameManager.Instance.OnAlmostReady();
+            }
+        }
+        else
+        {
+            if (GameManager.Instance != null)
+            {
+                GameManager.Instance.OnAlmostReady();
             }
         }
 
-        Debug.Log($"Grass generation complete! Total chunks: {processedChunks}");
+        LoadingUI.Instance?.UpdateProgress(1f, "Complete!");
+    }
+
+    private void PlaceBoxes()
+    {
+        float totalArea = mapSize * mapSize;
+        int targetBoxCount = Mathf.RoundToInt(totalArea * boxDensity);
+        
+        spawnedBoxPositions.Clear();
+        System.Random random = new System.Random(numericSeed);
+        
+        int successfulPlacements = 0;
+        int totalAttempts = 0;
+        int consecutiveFailures = 0;
+        
+        float halfMapSize = mapSize * 0.5f;
+        int groundLayer = LayerMask.GetMask("Ground");
+        
+        if (groundLayer == 0)
+        {
+            Debug.LogError("Ground layer not found!");
+            return;
+        }
+        
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        
+        while (successfulPlacements < targetBoxCount)
+        {
+            totalAttempts++;
+            
+            if (consecutiveFailures >= maxConsecutiveFailures || stopwatch.ElapsedMilliseconds > 10000)
+            {
+                break;
+            }
+            
+            float randomX = (float)(random.NextDouble() * mapSize - halfMapSize);
+            float randomZ = (float)(random.NextDouble() * mapSize - halfMapSize);
+            
+            if (Vector3.Distance(new Vector3(randomX, 0, randomZ), Vector3.zero) < centerExclusionRadius)
+            {
+                consecutiveFailures++;
+                continue;
+            }
+            
+            bool tooClose = false;
+            foreach (Vector3 existingPos in spawnedBoxPositions)
+            {
+                if (Vector2.Distance(new Vector2(randomX, randomZ), new Vector2(existingPos.x, existingPos.z)) < minBoxSpacing)
+                {
+                    tooClose = true;
+                    break;
+                }
+            }
+            
+            if (tooClose)
+            {
+                consecutiveFailures++;
+                continue;
+            }
+            
+            Vector3 rayStart = new Vector3(randomX, 500f, randomZ);
+            
+            if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, 1000f, groundLayer))
+            {
+                if (hit.point.y < minBoxHeight)
+                {
+                    consecutiveFailures++;
+                    continue;
+                }
+                
+                float slopeAngle = Vector3.Angle(hit.normal, Vector3.up);
+                if (slopeAngle > 45f)
+                {
+                    consecutiveFailures++;
+                    continue;
+                }
+                
+                Vector3 spawnPosition = hit.point + Vector3.up * 0.5f;
+                GameObject box = Instantiate(boxPrefab, spawnPosition, Quaternion.identity);
+                
+                if (slopeAngle < 30f)
+                {
+                    box.transform.up = hit.normal;
+                }
+                else
+                {
+                    box.transform.up = Vector3.Slerp(Vector3.up, hit.normal, 0.5f);
+                }
+                
+                box.name = $"Box_{successfulPlacements + 1}";
+                
+                spawnedBoxPositions.Add(hit.point);
+                successfulPlacements++;
+                consecutiveFailures = 0;
+            }
+            else
+            {
+                consecutiveFailures++;
+            }
+        }
+        
+        stopwatch.Stop();
+        Debug.Log($"<color=green>Successfully placed: {successfulPlacements}/{targetBoxCount} boxes in {stopwatch.ElapsedMilliseconds}ms</color>");
     }
 
     private ChunkData GenerateChunkData(Vector2Int chunkCoord)
@@ -467,7 +736,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         float minHeight = float.MaxValue;
         float maxHeight = float.MinValue;
 
-        // 월드 중심 계산
         int halfWorldSize = (worldSizeInChunks * chunkSize) / 2;
         
         int vertexIndex = 0;
@@ -477,30 +745,23 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             {
                 float height = CalculateHeight(x + offset.x, z + offset.y, octaveOffsets);
                 
-                // ★ Falloff 적용
                 if (useFalloff && falloffMap != null)
                 {
-                    // 로컬 좌표를 월드 좌표로 변환 (맵 중심이 0,0)
                     float worldX = x + offset.x;
                     float worldZ = z + offset.y;
                     
-                    // Falloff 맵 인덱스로 변환 (0 ~ totalSize)
                     int falloffX = Mathf.RoundToInt(worldX + halfWorldSize);
                     int falloffZ = Mathf.RoundToInt(worldZ + halfWorldSize);
                     
                     int totalSize = worldSizeInChunks * chunkSize + 1;
                     
-                    // 범위 체크
                     if (falloffX >= 0 && falloffX < totalSize && falloffZ >= 0 && falloffZ < totalSize)
                     {
                         float falloffValue = falloffMap[falloffX, falloffZ];
-                        
                         height = Mathf.Lerp(height, -heightMultiplier * 1.5f, falloffValue);
-                        
                     }
                     else
                     {
-                        // 범위 밖이면 강제로 아래로
                         height = -heightMultiplier;
                     }
                 }
@@ -516,7 +777,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             }
         }
 
-        // 삼각형 생성
         int triangleIndex = 0;
         int vertex = 0;
 
@@ -570,19 +830,27 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     private void CreateChunkFromData(ChunkData data, bool generateGrass = false)
     {
         TerrainChunk chunk = GetChunkFromPool();
-    
+
         Vector3 position = new Vector3(
             data.chunkCoord.x * chunkSize,
             0,
             data.chunkCoord.y * chunkSize
         );
-    
+
         chunk.transform.position = position;
         chunk.Initialize(data.chunkCoord, terrainMaterial);
         chunk.ApplyMeshData(data);
-        
-        chunk.gameObject.layer = LayerMask.NameToLayer("Ground");
     
+        int groundLayer = LayerMask.NameToLayer("Ground");
+        if (groundLayer == -1)
+        {
+            Debug.LogError("Ground layer does not exist!");
+        }
+        else
+        {
+            chunk.gameObject.layer = groundLayer;
+        }
+
         activeChunks[data.chunkCoord] = chunk;
         chunkDataCache[data.chunkCoord] = data;
     }
@@ -662,6 +930,26 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         {
             Gizmos.color = new Color(0, 0.5f, 1f, 0.3f);
             Gizmos.DrawWireCube(new Vector3(0, waterLevel, 0), new Vector3(mapSize, 0.1f, mapSize));
+        }
+        
+        Gizmos.color = new Color(1f, 0f, 0f, 0.3f);
+        Gizmos.DrawWireSphere(Vector3.zero, centerExclusionRadius);
+        
+        // ★ 초기 풀 생성 반경
+        Gizmos.color = new Color(0f, 1f, 0f, 0.3f);
+        Gizmos.DrawWireSphere(Vector3.zero, initialGrassRadius);
+        
+        // ★ 동적 풀 생성 반경
+        if (viewer != null)
+        {
+            Gizmos.color = new Color(0f, 1f, 1f, 0.2f);
+            Gizmos.DrawWireSphere(viewer.position, dynamicGrassDistance);
+        }
+        
+        Gizmos.color = Color.green;
+        foreach (Vector3 pos in spawnedBoxPositions)
+        {
+            Gizmos.DrawWireSphere(pos, 1f);
         }
     }
 }

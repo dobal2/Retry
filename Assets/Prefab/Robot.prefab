@@ -1644,14 +1644,21 @@ MonoBehaviour:
   targetType: 0
   displayName: Spider
   alwaysShow: 1
+  boundsSource: 1
+  cacheBounds: 1
+  boundsUpdateInterval: 0.0001
+  autoFixBounds: 1
+  minBoundsSize: 0.5
+  maxBoundsSize: 50
+  useManualCenter: 0
+  manualCenterOffset: {x: 0, y: 0, z: 0}
+  manualBoundsSize: {x: 2, y: 2, z: 2}
   boxColor: {r: 1, g: 0, b: 0, a: 1}
   boxPadding: 30
   lineThickness: 4
   useCornerOnly: 0
   cornerLength: 20
   showName: 1
-  showDamage: 1
-  showHealthText: 1
   fadeWithDistance: 1
   maxTextVisibleDistance: 30
   maxVisibleDistance: 45
@@ -1660,9 +1667,11 @@ MonoBehaviour:
   occlusionLayers:
     serializedVersion: 2
     m_Bits: 213302
-  raycastCount: 2
-  showOnlyInCameraView: 0
-  cameraViewAngle: 20
+  raycastCount: 1
+  showOnlyInCameraView: 1
+  cameraViewAngle: 60
+  useLateUpdate: 1
+  showDebugGizmos: 0
 --- !u!114 &3853179853395017663
 MonoBehaviour:
   m_ObjectHideFlags: 0

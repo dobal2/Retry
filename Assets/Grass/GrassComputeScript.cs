@@ -454,38 +454,42 @@ public class GrassComputeScript : MonoBehaviour
         // variables sent to the shader every frame
         m_InstantiatedComputeShader.SetFloat("_Time", Time.time);
         m_InstantiatedComputeShader.SetMatrix("_LocalToWorld", transform.localToWorldMatrix);
+
+        // ✅ 시간 정지 체크 최적화 (null 체크 먼저)
+        bool isTimeStopped = TimeStopManager.Instance != null && TimeStopManager.Instance.IsTimeStopped;
     
-        // ✅ 시간 정지 상태 체크해서 바람 강도 조절
-        if (TimeStopManager.Instance != null && TimeStopManager.Instance.IsTimeStopped)
+        if (isTimeStopped)
         {
-            // 시간 정지 중: 바람 강도 0
             m_InstantiatedComputeShader.SetFloat("_WindStrength", 0f);
         }
         else
         {
-            // 정상 상태: 원래 바람 강도
             m_InstantiatedComputeShader.SetFloat("_WindStrength", currentPresets.windStrength);
         }
-    
+
         if (interactors.Length > 0)
         {
             Vector4[] positions = new Vector4[interactors.Length];
 
             for (int i = 0; i < interactors.Length; i++)
             {
-                positions[i] = new Vector4(interactors[i].transform.position.x, interactors[i].transform.position.y, interactors[i].transform.position.z,
-                    interactors[i].radius);
-
+                positions[i] = new Vector4(
+                    interactors[i].transform.position.x, 
+                    interactors[i].transform.position.y, 
+                    interactors[i].transform.position.z,
+                    interactors[i].radius
+                );
             }
+        
             m_InstantiatedComputeShader.SetVectorArray(shaderID, positions);
             m_InstantiatedComputeShader.SetFloat("_InteractorsLength", interactors.Length);
         }
+    
         if (m_MainCamera != null)
         {
             m_InstantiatedComputeShader.SetVector("_CameraPositionWS", m_MainCamera.transform.position);
         }
 #if UNITY_EDITOR
-        // if we dont have a main camera (it gets added during gameplay), use the scene camera
         else if (view != null)
         {
             m_InstantiatedComputeShader.SetVector("_CameraPositionWS", view.camera.transform.position);

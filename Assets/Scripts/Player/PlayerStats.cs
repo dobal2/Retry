@@ -60,6 +60,8 @@ public class PlayerStats : MonoBehaviour
     [SerializeField]
     private int maxJumpCount = 1;
 
+    [SerializeField] private int currentEnergy;
+
     [Header("Damage Visual Effects")]
     [SerializeField] private ShakeData takeDamageShake;
     [SerializeField] private CameraShaker shaker;
@@ -418,6 +420,21 @@ public class PlayerStats : MonoBehaviour
     public void AddJumpCount(int amount)
     {
         SetMaxJumpCount(maxJumpCount + amount);
+    }
+
+    public void AddEnergy(int amount)
+    {
+        currentEnergy += amount;
+    }
+    
+    public int GetEnergy()
+    {
+        return currentEnergy; // 에너지 필드
+    }
+
+    public void ConsumeEnergy(int amount)
+    {
+        currentEnergy -= amount;
     }
 
     #endregion

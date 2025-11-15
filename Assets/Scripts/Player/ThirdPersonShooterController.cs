@@ -33,14 +33,12 @@ public class ThirdPersonShooterController : MonoBehaviour {
     //[SerializeField] private Transform spineBone;
     [SerializeField] private Transform cameraTransform;
     
-    private PlayerHealth playerHealth;
 
     private void Awake() {
         thirdPersonController = GetComponent<ThirdPersonController>();
         starterAssetsInputs = GetComponent<StarterAssetsInputs>();
         //animator = GetComponent<Animator>();
         currentAmmo = maxAmmo;
-        playerHealth = GetComponent<PlayerHealth>();
     }
     
     private void LateUpdate() {
@@ -72,7 +70,7 @@ public class ThirdPersonShooterController : MonoBehaviour {
 
     private void Update() {
     
-    if(playerHealth.died)
+    if(PlayerStats.Instance.IsAlive() == false)
         return;
     
     Vector3 mouseWorldPosition = Vector3.zero;

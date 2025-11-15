@@ -16,7 +16,7 @@ public class ObjectPool : MonoBehaviour
         public bool autoExpand = true;
     }
     
-    [Header("풀 설정")]
+    [Header("Pooled Object")]
     [SerializeField] private List<Pool> pools = new List<Pool>();
     
     private Dictionary<string, Queue<GameObject>> poolDictionary;
@@ -55,7 +55,6 @@ public class ObjectPool : MonoBehaviour
             }
             
             poolDictionary.Add(pool.tag, objectPool);
-            Debug.Log($"[ObjectPool] '{pool.tag}' 풀 생성 완료: {pool.initialSize}개");
         }
     }
     
@@ -73,7 +72,6 @@ public class ObjectPool : MonoBehaviour
     {
         if (!poolDictionary.ContainsKey(tag))
         {
-            Debug.LogWarning($"[ObjectPool] 풀 태그 '{tag}'가 존재하지 않습니다!");
             return null;
         }
         
@@ -87,12 +85,10 @@ public class ObjectPool : MonoBehaviour
         else if (poolSettings[tag].autoExpand)
         {
             // 풀이 비어있으면 자동 확장
-            Debug.Log($"[ObjectPool] '{tag}' 풀 확장 중...");
             obj = CreateNewObject(poolSettings[tag].prefab);
         }
         else
         {
-            Debug.LogWarning($"[ObjectPool] '{tag}' 풀에 사용 가능한 오브젝트가 없습니다!");
             return null;
         }
         
@@ -118,7 +114,6 @@ public class ObjectPool : MonoBehaviour
     {
         if (!poolDictionary.ContainsKey(tag))
         {
-            Debug.LogWarning($"[ObjectPool] 풀 태그 '{tag}'가 존재하지 않습니다!");
             return;
         }
         

@@ -26,6 +26,9 @@ public class EnergyCoreAnimation : MonoBehaviour
     
     private void Update()
     {
+        if(TimeStopManager.Instance.IsTimeStopped)
+            return;
+        
         // ★ Y축 위아래 움직임
         float yOffset = Mathf.Sin((Time.time + timeOffset) * floatSpeed) * floatAmplitude;
         transform.position = startPosition + Vector3.up * yOffset;

@@ -24,6 +24,10 @@ Shader "Custom/ForceField_Complete_URP"
         _HexEdgeOnly ("Hex Edge Only", Range(0, 1)) = 1
         _HexEdgeThickness ("Hex Edge Thickness", Range(0.01, 0.5)) = 0.1
         _HexTopFade ("Hex Top Fade", Range(0, 1)) = 0.3
+        
+        // ★ 커스텀 시간 프로퍼티 추가
+        [Header(Animation)]
+        _AnimationTime ("Animation Time", Float) = 0
     }
     
     SubShader
@@ -42,8 +46,8 @@ Shader "Custom/ForceField_Complete_URP"
             Cull Off
             ZWrite Off
             Blend SrcAlpha OneMinusSrcAlpha
-             ZTest LEqual  // ★ 추가
-            Offset -1, -1  // ★ 추가 (Z-Fighting 방지)
+            ZTest LEqual
+            Offset -1, -1
             
             HLSLPROGRAM
             #pragma vertex vert
@@ -92,6 +96,9 @@ Shader "Custom/ForceField_Complete_URP"
                 half _HexEdgeOnly;
                 half _HexEdgeThickness;
                 half _HexTopFade;
+                
+                // ★ 커스텀 시간 변수 추가
+                float _AnimationTime;
             CBUFFER_END
             
             Varyings vert(Attributes input)
@@ -117,7 +124,6 @@ Shader "Custom/ForceField_Complete_URP"
                 half3 normal = normalize(input.normalWS);
                 half3 viewDir = normalize(input.viewDirWS);
                 
-                // ★ Fresnel 안정화
                 half NdotV = saturate(abs(dot(normal, viewDir)) + 0.001);
                 half fresnel = saturate(pow(1.0 - NdotV, _FresnelPower));
                 
@@ -125,7 +131,8 @@ Shader "Custom/ForceField_Complete_URP"
                 half topMask = saturate((normalOS.y - (1.0 - _HexTopFade)) / _HexTopFade);
                 topMask = 1.0 - topMask;
                 
-                float2 hexUV = input.uv * float2(_HexScaleX, _HexScaleY) + _HexSpeed.xy * _Time.y;
+                // ★ _Time.y 대신 _AnimationTime 사용
+                float2 hexUV = input.uv * float2(_HexScaleX, _HexScaleY) + _HexSpeed.xy * _AnimationTime;
                 half4 hexPattern = SAMPLE_TEXTURE2D(_HexTex, sampler_HexTex, hexUV);
                 
                 half hexValue = hexPattern.r;
@@ -136,7 +143,6 @@ Shader "Custom/ForceField_Complete_URP"
                 hexEdgeMask *= topMask;
                 hexFillMask *= topMask;
                 
-                // ★ Depth Intersection 안정화
                 float2 screenUV = input.screenPos.xy / input.screenPos.w;
                 half intersection = 0;
                 
@@ -170,7 +176,6 @@ Shader "Custom/ForceField_Complete_URP"
                 col.a = saturate((fresnel + patternAlpha) * _Alpha + intersection);
                 col.a = max(col.a, 0.1);
                 
-                // ★ 최종 색상 제한
                 col.rgb = min(col.rgb, 10.0);
                 
                 return col;

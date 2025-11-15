@@ -390,6 +390,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         // ★ 콜라이더 끄기 전에 앵커박스에 신호 보내기!
         if (anchorBox != null)
         {
+            anchorBox.CacheBoundsForDeath();
             anchorBox.SetUIAlpha(0.99f); // 사망 시작 신호
         }
 

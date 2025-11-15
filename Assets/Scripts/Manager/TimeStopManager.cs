@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// 시간정지 상태를 관리하는 싱글톤 매니저
@@ -14,15 +15,19 @@ public class TimeStopManager : MonoBehaviour
     [SerializeField] private bool affectEnemies = true;
     [SerializeField] private bool affectProjectiles = true;
     [SerializeField] private bool affectEnvironment = false;
+    [SerializeField] private bool affectForceFields = true; 
 
     public bool IsTimeStopped => isTimeStopped;
     public bool AffectEnemies => affectEnemies;
     public bool AffectProjectiles => affectProjectiles;
     public bool AffectEnvironment => affectEnvironment;
+    public bool AffectForceFields => affectForceFields;
+
+    // ★ ForceField 추적
+    private List<ForceFieldAnimationController> registeredForceFields = new List<ForceFieldAnimationController>();
 
     private void Awake()
     {
-        // 싱글톤 패턴
         if (Instance == null)
         {
             Instance = this;
@@ -39,8 +44,13 @@ public class TimeStopManager : MonoBehaviour
     /// </summary>
     public void StartTimeStop()
     {
+        if (isTimeStopped) return;
+        
         isTimeStopped = true;
-        Debug.Log("[TimeStop] Time stopped!");
+        Debug.Log("[TimeStop] ⏸ Time stopped!");
+        
+        // ★ 모든 ForceField에 알림
+        NotifyForceFields();
     }
 
     /// <summary>
@@ -48,8 +58,28 @@ public class TimeStopManager : MonoBehaviour
     /// </summary>
     public void StopTimeStop()
     {
+        if (!isTimeStopped) return;
+        
         isTimeStopped = false;
-        Debug.Log("[TimeStop] Time resumed!");
+        Debug.Log("[TimeStop] ▶ Time resumed!");
+        
+        // ★ 모든 ForceField에 알림
+        NotifyForceFields();
+    }
+
+    /// <summary>
+    /// 시간정지 토글
+    /// </summary>
+    public void ToggleTimeStop()
+    {
+        if (isTimeStopped)
+        {
+            StopTimeStop();
+        }
+        else
+        {
+            StartTimeStop();
+        }
     }
 
     /// <summary>
@@ -64,9 +94,53 @@ public class TimeStopManager : MonoBehaviour
             EntityType.Enemy => affectEnemies,
             EntityType.Projectile => affectProjectiles,
             EntityType.Environment => affectEnvironment,
-            EntityType.Player => false, // 플레이어는 항상 움직임
+            EntityType.ForceField => affectForceFields,
+            EntityType.Player => false,
             _ => false
         };
+    }
+    
+    /// <summary>
+    /// ForceField 등록 (옵션)
+    /// </summary>
+    public void RegisterForceField(ForceFieldAnimationController forceField)
+    {
+        if (!registeredForceFields.Contains(forceField))
+        {
+            registeredForceFields.Add(forceField);
+            Debug.Log($"[TimeStop] ForceField registered: {forceField.name}");
+        }
+    }
+    
+    /// <summary>
+    /// ForceField 등록 해제 (옵션)
+    /// </summary>
+    public void UnregisterForceField(ForceFieldAnimationController forceField)
+    {
+        registeredForceFields.Remove(forceField);
+    }
+    
+    /// <summary>
+    /// 모든 ForceField에 상태 변경 알림 (옵션)
+    /// </summary>
+    private void NotifyForceFields()
+    {
+        foreach (var forceField in registeredForceFields)
+        {
+            if (forceField != null)
+            {
+                // 필요시 추가 로직
+            }
+        }
+    }
+
+    // ★ 디버그용 키 입력
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.T))
+        {
+            ToggleTimeStop();
+        }
     }
 }
 
@@ -78,5 +152,6 @@ public enum EntityType
     Player,
     Enemy,
     Projectile,
-    Environment
+    Environment,
+    ForceField // ★ 추가
 }

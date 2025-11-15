@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class ForceFieldManager : MonoBehaviour
 {
@@ -21,6 +22,20 @@ public class ForceFieldManager : MonoBehaviour
     [SerializeField] private float pulseAmount = 1.2f;
     [SerializeField] private float pulseDuration = 0.5f;
     
+    [Header("Terrain Scanner Particle")]
+    [SerializeField] private ParticleSystem terrainScannerPrefab;
+    [SerializeField] private bool enableTerrainScanner = true;
+    [SerializeField] private float scannerRepeatInterval = 5f;
+    [SerializeField] private float scannerHeightOffset = 0.5f;
+    [SerializeField] private Color scannerColor = Color.cyan;
+    [SerializeField] private bool pauseScannerOnTimeStop = true;
+    
+    [Header("Upgrade Energy Cost")]
+    [SerializeField] private int baseEnergyCost = 30;
+    [SerializeField] private float costMultiplierPerLevel = 1.3f;
+    
+
+    
     [Header("Player Protection")]
     [SerializeField] private float damagePerSecond = 10f;
     [SerializeField] private float damageInterval = 1f;
@@ -33,11 +48,16 @@ public class ForceFieldManager : MonoBehaviour
     [SerializeField] private float fogTransitionSpeed = 2f;
     
     private GameObject forceFieldInstance;
+    private ParticleSystem terrainScannerInstance;
     private Vector3 targetScale;
     private Coroutine growCoroutine;
+    private Coroutine scannerCoroutine;
+    private Coroutine scanDamageCoroutine;
     private float damageTimer;
     private bool isPlayerInside = true;
     private Coroutine fogTransitionCoroutine;
+    private bool wasTimeStopped = false;
+    private bool wasScannerPlaying = false;
     
     public static ForceFieldManager Instance { get; private set; }
     
@@ -56,11 +76,18 @@ public class ForceFieldManager : MonoBehaviour
     private void Start()
     {
         CreateForceField();
+        CreateTerrainScanner();
         
         // 초기 Fog 설정
         if (fogMaterial != null)
         {
             fogMaterial.SetFloat(densityPropertyName, insideDensity);
+        }
+        
+        // 테레인 스캐너 시작
+        if (enableTerrainScanner && terrainScannerInstance != null)
+        {
+            scannerCoroutine = StartCoroutine(TerrainScannerRoutine());
         }
     }
     
@@ -72,6 +99,7 @@ public class ForceFieldManager : MonoBehaviour
         }
         
         CheckPlayerPosition();
+        CheckTimeStopState();
         
         // 테스트용
         if (Input.GetKeyDown(KeyCode.Equals) || Input.GetKeyDown(KeyCode.Plus))
@@ -83,19 +111,213 @@ public class ForceFieldManager : MonoBehaviour
         {
             LevelDown();
         }
+        
+        // 테레인 스캐너 수동 트리거 (테스트용)
+        if (Input.GetKeyDown(KeyCode.Y))
+        {
+            TriggerTerrainScan();
+        }
     }
+    
+    public int GetRequiredEnergyForNextLevel()
+    {
+        return Mathf.RoundToInt(baseEnergyCost + (currentLevel - 1) * baseEnergyCost * costMultiplierPerLevel);
+    }
+    
+    public bool TryLevelUpWithEnergy()
+    {
+        if (currentLevel >= maxLevel)
+        {
+            Debug.Log("Force Field is already at max level!");
+            return false;
+        }
+    
+        if (PlayerStats.Instance == null)
+        {
+            Debug.LogWarning("PlayerStats not found!");
+            return false;
+        }
+    
+        int requiredEnergy = GetRequiredEnergyForNextLevel();
+        int playerEnergy = PlayerStats.Instance.GetEnergy();
+    
+        if (playerEnergy >= requiredEnergy)
+        {
+            PlayerStats.Instance.ConsumeEnergy(requiredEnergy);
+            LevelUp();
+            Debug.Log($"Force Field upgraded! Energy consumed: {requiredEnergy}");
+            return true;
+        }
+        else
+        {
+            Debug.Log($"Not enough energy! Required: {requiredEnergy}, Current: {playerEnergy}");
+            return false;
+        }
+    }
+    
+    public int GetMaxLevel()
+    {
+        return maxLevel;
+    }
+    
+    private void CheckTimeStopState()
+    {
+        if (!pauseScannerOnTimeStop || terrainScannerInstance == null) return;
+        if (TimeStopManager.Instance == null) return;
+        
+        bool isTimeStopped = TimeStopManager.Instance.IsTimeStopped && 
+                            TimeStopManager.Instance.AffectForceFields;
+        
+        if (isTimeStopped != wasTimeStopped)
+        {
+            if (isTimeStopped)
+            {
+                OnTimeStop();
+            }
+            else
+            {
+                OnTimeResume();
+            }
+            
+            wasTimeStopped = isTimeStopped;
+        }
+    }
+    
+    private void OnTimeStop()
+    {
+        if (terrainScannerInstance == null) return;
+        
+        wasScannerPlaying = terrainScannerInstance.isPlaying;
+        terrainScannerInstance.Pause();
+        
+        if (scannerCoroutine != null)
+        {
+            StopCoroutine(scannerCoroutine);
+            scannerCoroutine = null;
+        }
+        
+        if (scanDamageCoroutine != null)
+        {
+            StopCoroutine(scanDamageCoroutine);
+            scanDamageCoroutine = null;
+        }
+        
+        Debug.Log("[ForceField] Terrain Scanner paused due to time stop");
+    }
+    
+    private void OnTimeResume()
+    {
+        if (terrainScannerInstance == null) return;
+        
+        if (wasScannerPlaying)
+        {
+            terrainScannerInstance.Play();
+        }
+        
+        if (enableTerrainScanner && scannerCoroutine == null)
+        {
+            scannerCoroutine = StartCoroutine(TerrainScannerRoutine());
+        }
+        
+        Debug.Log("[ForceField] Terrain Scanner resumed");
+    }
+    
+    private void CreateTerrainScanner()
+    {
+        if (terrainScannerPrefab == null)
+        {
+            Debug.LogWarning("Terrain Scanner Prefab is not assigned!");
+            return;
+        }
+    
+        Vector3 spawnPosition = Vector3.zero + Vector3.up * scannerHeightOffset;
+        terrainScannerInstance = Instantiate(terrainScannerPrefab, spawnPosition, Quaternion.identity);
+        terrainScannerInstance.name = "TerrainScanner";
+        terrainScannerInstance.transform.SetParent(transform);
+    
+        // 초기 크기 설정
+        UpdateTerrainScannerSize();
+        
+        // 처음에는 재생하지 않음
+        terrainScannerInstance.Stop();
+    
+        Debug.Log("Terrain Scanner created at map center");
+    }
+    
+    private void UpdateTerrainScannerSize()
+    {
+        if (terrainScannerInstance == null) return;
+    
+        float currentSize = GetCurrentSize();
+        float radius = currentSize / 2f;
+    
+        // ParticleSystem의 Shape 모듈 크기 조정
+        var shape = terrainScannerInstance.shape;
+        shape.radius = radius;
+    
+        // ParticleSystem의 Start Size 조정
+        var main = terrainScannerInstance.main;
+        main.startSize = currentSize;
+        main.startColor = scannerColor;
+    
+        Debug.Log($"Terrain Scanner size updated - Radius: {radius}, Diameter: {currentSize}");
+    }
+    
+    private IEnumerator TerrainScannerRoutine()
+    {
+        yield return new WaitForSeconds(1f);
+        
+        while (true)
+        {
+            if (TimeStopManager.Instance != null && 
+                TimeStopManager.Instance.IsTimeStopped && 
+                TimeStopManager.Instance.AffectForceFields &&
+                pauseScannerOnTimeStop)
+            {
+                yield return null;
+                continue;
+            }
+            
+            TriggerTerrainScan();
+            yield return new WaitForSeconds(scannerRepeatInterval);
+        }
+    }
+    
+    private void TriggerTerrainScan()
+    {
+        if (terrainScannerInstance != null)
+        {
+            if (TimeStopManager.Instance != null && 
+                TimeStopManager.Instance.IsTimeStopped && 
+                TimeStopManager.Instance.AffectForceFields &&
+                pauseScannerOnTimeStop)
+            {
+                Debug.Log("Terrain Scanner blocked - Time is stopped");
+                return;
+            }
+        
+            UpdateTerrainScannerSize();
+            terrainScannerInstance.Play();
+            
+            // 웨이브 확장 데미지 코루틴 시작
+            if (scanDamageCoroutine != null)
+            {
+                StopCoroutine(scanDamageCoroutine);
+            }
+            
+            Debug.Log("Terrain Scanner triggered");
+        }
+    }
+    
     
     private void CheckPlayerPosition()
     {
-
-        
         float distanceFromCenter = Vector3.Distance(PlayerStats.Instance.gameObject.transform.position, forceFieldInstance.transform.position);
         float forceFieldRadius = GetCurrentSize() / 2f;
         
         bool wasInside = isPlayerInside;
         isPlayerInside = distanceFromCenter <= forceFieldRadius;
         
-        // 상태 변경 시 Fog 전환
         if (wasInside != isPlayerInside)
         {
             if (isPlayerInside)
@@ -108,7 +330,6 @@ public class ForceFieldManager : MonoBehaviour
             }
         }
         
-        // 밖에 있으면 데미지
         if (!isPlayerInside)
         {
             damageTimer += Time.deltaTime;
@@ -172,7 +393,6 @@ public class ForceFieldManager : MonoBehaviour
     
     private void DealDamageToPlayer()
     {
-        // PlayerStats 있다면
         if (PlayerStats.Instance != null)
         {
             PlayerStats.Instance.TakeDamage(damagePerSecond);
@@ -227,6 +447,8 @@ public class ForceFieldManager : MonoBehaviour
             forceFieldInstance.transform.localScale = targetScale;
         }
         
+        UpdateTerrainScannerSize();
+        
         Debug.Log($"Force Field level set to {currentLevel}, size: {targetSize}");
     }
     
@@ -237,13 +459,30 @@ public class ForceFieldManager : MonoBehaviour
             Debug.Log("Force Field is already at max level!");
             return;
         }
-        
+    
         SetForceFieldLevel(currentLevel + 1, true);
-        
+    
+        // 펄스는 성장 애니메이션 끝난 후에
         if (enablePulseOnLevelUp)
         {
-            StartCoroutine(PulseEffect());
+            StartCoroutine(PulseAfterGrow());
         }
+    
+        if (enableTerrainScanner)
+        {
+            TriggerTerrainScan();
+        }
+    }
+
+    private IEnumerator PulseAfterGrow()
+    {
+        // GrowToSize가 끝날 때까지 대기
+        while (growCoroutine != null)
+        {
+            yield return null;
+        }
+    
+        yield return StartCoroutine(PulseEffect());
     }
     
     public void LevelDown()
@@ -313,6 +552,12 @@ public class ForceFieldManager : MonoBehaviour
             Destroy(forceFieldInstance);
             Debug.Log("Force Field destroyed");
         }
+    
+        if (terrainScannerInstance != null)
+        {
+            Destroy(terrainScannerInstance.gameObject);
+            Debug.Log("Terrain Scanner destroyed");
+        }
     }
     
     public int GetCurrentLevel()
@@ -335,6 +580,48 @@ public class ForceFieldManager : MonoBehaviour
         return isPlayerInside;
     }
     
+    public void SetScannerRepeatInterval(float interval)
+    {
+        scannerRepeatInterval = interval;
+        
+        if (scannerCoroutine != null)
+        {
+            StopCoroutine(scannerCoroutine);
+        }
+        
+        if (enableTerrainScanner && terrainScannerInstance != null)
+        {
+            scannerCoroutine = StartCoroutine(TerrainScannerRoutine());
+        }
+    }
+    
+    public void SetScannerColor(Color color)
+    {
+        scannerColor = color;
+        UpdateTerrainScannerSize();
+    }
+    
+    public void ToggleTerrainScanner(bool enable)
+    {
+        enableTerrainScanner = enable;
+        
+        if (enable)
+        {
+            if (scannerCoroutine == null && terrainScannerInstance != null)
+            {
+                scannerCoroutine = StartCoroutine(TerrainScannerRoutine());
+            }
+        }
+        else
+        {
+            if (scannerCoroutine != null)
+            {
+                StopCoroutine(scannerCoroutine);
+                scannerCoroutine = null;
+            }
+        }
+    }
+    
     private void OnDrawGizmos()
     {
         if (forceFieldInstance != null)
@@ -343,9 +630,15 @@ public class ForceFieldManager : MonoBehaviour
             Gizmos.DrawWireSphere(forceFieldInstance.transform.position, GetCurrentSize() / 2f);
             
             #if UNITY_EDITOR
+            string timeStatus = "";
+            if (TimeStopManager.Instance != null && TimeStopManager.Instance.IsTimeStopped)
+            {
+                timeStatus = "\n⏸ TIME STOPPED";
+            }
+            
             UnityEditor.Handles.Label(
                 forceFieldInstance.transform.position + Vector3.up * (GetCurrentSize() / 2f + 2f),
-                $"Level {currentLevel}\nSize: {GetCurrentSize():F1}\nPlayer: {(isPlayerInside ? "SAFE" : "DANGER")}"
+                $"Level {currentLevel}\nSize: {GetCurrentSize():F1}\nPlayer: {(isPlayerInside ? "SAFE" : "DANGER")}\nScanner: {(enableTerrainScanner ? "ON" : "OFF")}{timeStatus}"
             );
             #endif
         }

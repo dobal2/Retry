@@ -1,9 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
-using Unity.Jobs;
-using Unity.Collections;
-using Unity.Burst;
 
 public class GrassGenerator : MonoBehaviour
 {
@@ -31,98 +28,50 @@ public class GrassGenerator : MonoBehaviour
     public float normalLimit = 0.5f;
     
     [Header("Height Constraints")]
-    [SerializeField] private float waterLevel = -3f; // 물 레벨
-    // [SerializeField] private float minGrassHeight = -2.5f; // 최소 풀 생성 높이
-    // [SerializeField] private float maxGrassHeight = 50f; // 최대 풀 생성 높이
-    // [SerializeField] private float maxGrassSlope = 45f; // 최대 경사각 (도)
-    [SerializeField] private AnimationCurve grassDensityByHeight = AnimationCurve.Linear(0, 1, 1, 1); // 높이별 밀도
+    [SerializeField] private float waterLevel = -3f;
     
     [Header("References")]
     public GrassComputeScript grassCompute;
     
+    [Header("Batch Update Settings")]
+    [SerializeField] private int batchSizeBeforeUpdate = 10; // ★ N개 청크 모이면 한 번에 업데이트
+    
     [Header("Debug")]
     public bool showDebugInfo = true;
 
-    // 청크별 풀 데이터 저장
     private Dictionary<Vector2Int, List<GrassData>> chunkGrassData = new Dictionary<Vector2Int, List<GrassData>>();
     private List<GrassData> allGrassData = new List<GrassData>();
-    
-    /// <summary>
-    /// 특정 청크에 풀 생성
-    /// </summary>
-    public void GenerateGrassForChunk(Vector2Int chunkCoord, ChunkData chunkData, Transform chunkTransform)
-    {
-        if (chunkData == null)
-        {
-            Debug.LogError($"ChunkData is null for chunk {chunkCoord}");
-            return;
-        }
+    private HashSet<Vector2Int> appliedChunks = new HashSet<Vector2Int>(); // ★ 이미 적용된 청크 추적
+    private List<Vector2Int> pendingChunks = new List<Vector2Int>(); // ★ 대기 중인 청크
+    private bool isApplied = false;
 
+    public void GenerateGrassForChunkOptimized(OptimizedTerrainGenerator.GrassChunkInfo info)
+    {
         List<GrassData> grassList = new List<GrassData>();
         
-        // 청크 크기 기반으로 풀 개수 계산
-        int chunkSize = chunkData.chunkSize;
+        int chunkSize = info.data.chunkSize;
         float chunkArea = chunkSize * chunkSize;
         int numGrass = Mathf.FloorToInt(chunkArea * generationDensity);
-        
-        if (showDebugInfo)
-        {
-            Debug.Log($"Generating {numGrass} grass instances for chunk {chunkCoord}");
-        }
 
         int attemptCount = 0;
         int successCount = 0;
-        int maxAttempts = numGrass * 2; // 실패를 대비해 더 많이 시도
+        int maxAttempts = numGrass * 2;
 
-        // 풀 생성
         while (successCount < numGrass && attemptCount < maxAttempts)
         {
             attemptCount++;
             
-            // 청크 내 랜덤 위치
             float localX = Random.Range(0f, chunkSize);
             float localZ = Random.Range(0f, chunkSize);
             
-            // 높이와 노말 가져오기
-            float height = GetHeightAt(chunkData, localX, localZ);
-            Vector3 normal = GetNormalAt(chunkData, localX, localZ);
+            float height = GetHeightAt(info.data, localX, localZ);
+            Vector3 normal = GetNormalAt(info.data, localX, localZ);
             
-            // 물 레벨 체크
-            if (height <= waterLevel) // 0.2f는 여유값
-            {
-                continue;
-            }
+            if (height <= waterLevel) continue;
+            if (normal.y < (1 - normalLimit)) continue;
             
-            // 높이 범위 체크
-            // if (height < minGrassHeight || height > maxGrassHeight)
-            // {
-            //     continue;
-            // }
-            
-            //경사도 체크 (기존 방식)
-            if (normal.y < (1 - normalLimit))
-            {
-                continue;
-            }
-            
-            //각도 기반 경사도 체크
-            float slopeAngle = Vector3.Angle(Vector3.up, normal);
-            // if (slopeAngle > maxGrassSlope)
-            // {
-            //     continue;
-            // }
-            
-            //높이별 밀도 확률 체크
-            // float heightFactor = Mathf.InverseLerp(minGrassHeight, maxGrassHeight, height);
-            // float densityChance = grassDensityByHeight.Evaluate(heightFactor);
-            //
-            // if (Random.value > densityChance)
-            // {
-            //     continue;
-            // }
-            
-            // 월드 좌표 계산
-            Vector3 worldPos = chunkTransform.TransformPoint(new Vector3(localX, height, localZ));
+            Vector3 localPos = new Vector3(localX, height, localZ);
+            Vector3 worldPos = info.position + localPos;
             
             GrassData grassData = new GrassData
             {
@@ -136,46 +85,120 @@ public class GrassGenerator : MonoBehaviour
             successCount++;
         }
         
-        // 청크별로 저장
-        chunkGrassData[chunkCoord] = grassList;
-        
-        if (showDebugInfo)
-        {
-            Debug.Log($"Generated {grassList.Count} grass instances for chunk {chunkCoord} (attempted {attemptCount} times)");
-        }
+        chunkGrassData[info.coord] = grassList;
     }
-    
-    /// <summary>
-    /// 모든 청크의 풀 데이터를 GrassComputeScript에 적용
-    /// </summary>
-    public void ApplyAllGrass()
+
+    // ✅ 초기 풀 적용
+    public async Task ApplyInitialGrass()
     {
+        if (isApplied)
+        {
+            Debug.LogWarning("Grass already applied!");
+            return;
+        }
+        
+        if (grassCompute == null)
+        {
+            Debug.LogError("GrassComputeScript reference is not set!");
+            return;
+        }
+        
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        
         allGrassData.Clear();
+        appliedChunks.Clear();
         
         foreach (var kvp in chunkGrassData)
         {
             allGrassData.AddRange(kvp.Value);
+            appliedChunks.Add(kvp.Key); // ★ 적용된 청크로 표시
         }
         
-        if (grassCompute != null)
+        if (allGrassData.Count == 0)
         {
-            if (showDebugInfo)
+            Debug.LogWarning("No grass data to apply!");
+            return;
+        }
+        
+        Debug.Log($"<color=yellow>Applying {allGrassData.Count} initial grass...</color>");
+        
+        grassCompute.SetGrassPaintedDataList = allGrassData;
+        grassCompute.Reset();
+        
+        await Task.Yield();
+        
+        isApplied = true;
+        stopwatch.Stop();
+        
+        Debug.Log($"<color=green>✓ Initial grass applied in {stopwatch.ElapsedMilliseconds}ms!</color>");
+    }
+    
+    // ✅ 추가 풀 적용 (배치 방식 - 안전)
+    public async Task ApplyAdditionalGrass()
+    {
+        if (grassCompute == null)
+        {
+            Debug.LogError("GrassComputeScript reference is not set!");
+            return;
+        }
+        
+        System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        
+        // ★ 새로 생성된 청크만 수집
+        List<Vector2Int> newChunks = new List<Vector2Int>();
+        
+        foreach (var kvp in chunkGrassData)
+        {
+            if (!appliedChunks.Contains(kvp.Key))
             {
-                Debug.Log($"<color=green>Applying {allGrassData.Count} grass instances to GrassComputeScript</color>");
+                newChunks.Add(kvp.Key);
+            }
+        }
+        
+        if (newChunks.Count == 0)
+        {
+            return;
+        }
+        
+        // ★ 대기 리스트에 추가
+        pendingChunks.AddRange(newChunks);
+        
+        Debug.Log($"<color=cyan>New chunks: {newChunks.Count}, Pending: {pendingChunks.Count}/{batchSizeBeforeUpdate}</color>");
+        
+        // ★ 배치 크기 도달 시에만 업데이트
+        if (pendingChunks.Count >= batchSizeBeforeUpdate)
+        {
+            Debug.Log($"<color=yellow>Batch size reached! Updating {pendingChunks.Count} chunks...</color>");
+            
+            // 대기 중인 청크들의 풀 데이터 추가
+            foreach (var chunkCoord in pendingChunks)
+            {
+                if (chunkGrassData.TryGetValue(chunkCoord, out List<GrassData> grassList))
+                {
+                    allGrassData.AddRange(grassList);
+                    appliedChunks.Add(chunkCoord); // ★ 적용 완료 표시
+                }
             }
             
+            // GPU 업데이트
             grassCompute.SetGrassPaintedDataList = allGrassData;
-            grassCompute.Reset();
+            grassCompute.Reset(); // ★ Reset 필수! (배치로 최소화)
+            
+            // 대기 리스트 초기화
+            int appliedCount = pendingChunks.Count;
+            pendingChunks.Clear();
+            
+            Debug.Log($"<color=green>✓ Batch update complete! Applied {appliedCount} chunks ({allGrassData.Count} total grass)</color>");
         }
         else
         {
-            Debug.LogError("GrassComputeScript reference is not set!");
+            Debug.Log($"<color=gray>Waiting for batch... ({pendingChunks.Count}/{batchSizeBeforeUpdate})</color>");
         }
+        
+        await Task.Yield();
+        stopwatch.Stop();
     }
     
-    /// <summary>
-    /// ChunkData에서 특정 위치의 높이 가져오기 (보간)
-    /// </summary>
     private float GetHeightAt(ChunkData chunkData, float x, float z)
     {
         int x0 = Mathf.FloorToInt(x);
@@ -197,32 +220,23 @@ public class GrassGenerator : MonoBehaviour
         return Mathf.Lerp(h0, h1, fz);
     }
     
-    /// <summary>
-    /// ChunkData에서 특정 위치의 노말 계산
-    /// </summary>
     private Vector3 GetNormalAt(ChunkData chunkData, float x, float z)
     {
         int x0 = Mathf.FloorToInt(x);
         int z0 = Mathf.FloorToInt(z);
         
-        // 경계 체크
         x0 = Mathf.Clamp(x0, 0, chunkData.chunkSize - 1);
         z0 = Mathf.Clamp(z0, 0, chunkData.chunkSize - 1);
         
-        // 주변 높이 샘플링
         float heightL = chunkData.heightMap[Mathf.Max(0, x0 - 1), z0];
         float heightR = chunkData.heightMap[Mathf.Min(chunkData.chunkSize, x0 + 1), z0];
         float heightD = chunkData.heightMap[x0, Mathf.Max(0, z0 - 1)];
         float heightU = chunkData.heightMap[x0, Mathf.Min(chunkData.chunkSize, z0 + 1)];
         
-        // 노말 벡터 계산
         Vector3 normal = new Vector3(heightL - heightR, 2f, heightD - heightU);
         return normal.normalized;
     }
     
-    /// <summary>
-    /// 랜덤 색상 생성
-    /// </summary>
     private Vector3 GetRandomColor()
     {
         Color newRandomCol = new Color(
@@ -234,9 +248,6 @@ public class GrassGenerator : MonoBehaviour
         return new Vector3(newRandomCol.r, newRandomCol.g, newRandomCol.b);
     }
     
-    /// <summary>
-    /// 특정 청크의 풀 데이터 제거
-    /// </summary>
     public void RemoveChunkGrass(Vector2Int chunkCoord)
     {
         if (chunkGrassData.ContainsKey(chunkCoord))
@@ -245,13 +256,13 @@ public class GrassGenerator : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// 모든 풀 데이터 초기화
-    /// </summary>
     public void ClearAllGrass()
     {
         chunkGrassData.Clear();
         allGrassData.Clear();
+        appliedChunks.Clear();
+        pendingChunks.Clear();
+        isApplied = false;
         
         if (grassCompute != null)
         {
@@ -260,11 +271,13 @@ public class GrassGenerator : MonoBehaviour
         }
     }
     
-    /// <summary>
-    /// 물 레벨 업데이트 (외부에서 호출 가능)
-    /// </summary>
     public void SetWaterLevel(float level)
     {
         waterLevel = level;
+    }
+    
+    public bool IsGrassApplied()
+    {
+        return isApplied;
     }
 }
