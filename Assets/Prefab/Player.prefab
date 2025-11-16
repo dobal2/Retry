@@ -1231,7 +1231,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dashForce: 100
   dashDuration: 0.2
-  cooldownTimer: 3
+  cooldownTimer: 1
+  distortionMinValue: -0.8
+  distortionDownDuration: 0.1
+  distortionResetDuration: 0.3
+  dashSaturation: -60
+  normalSaturation: 30
+  saturationSpeed: 20
+  saturationRestoreSpeed: 5
 --- !u!1 &1090301191379745484
 GameObject:
   m_ObjectHideFlags: 0
