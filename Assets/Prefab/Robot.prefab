@@ -1738,8 +1738,10 @@ MonoBehaviour:
   currentHealth: 0
   fadeOutDuration: 0.7
   destroyDelay: 0.5
-  dropItem: {fileID: 4477868127934335147, guid: cd7b71c7ab0c0924cb131410269bc2a3,
+  energyCorePrefab: {fileID: 4477868127934335147, guid: cd7b71c7ab0c0924cb131410269bc2a3,
     type: 3}
+  baseMinDrop: 2
+  baseMaxDrop: 3
   materials:
   - {fileID: 2100000, guid: c123832b438b86e4ebe0909a252e1438, type: 2}
   - {fileID: 2100000, guid: 4a9c4a9b738ccb047bb63925aef68cf9, type: 2}

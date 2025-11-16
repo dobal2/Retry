@@ -210,6 +210,42 @@ MonoBehaviour:
   m_OnValueChanged:
     m_PersistentCalls:
       m_Calls: []
+--- !u!1 &195192775
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 195192776}
+  m_Layer: 5
+  m_Name: LevelUpCard
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 0
+--- !u!224 &195192776
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 195192775}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 1754425739}
+  m_Father: {fileID: 1378774906}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &232163035
 GameObject:
   m_ObjectHideFlags: 0
@@ -1180,10 +1216,10 @@ MonoBehaviour:
   scannerHeightOffset: 0.5
   scannerColor: {r: 0, g: 1, b: 1, a: 1}
   pauseScannerOnTimeStop: 1
-  baseEnergyCost: 30
+  baseEnergyCost: 14
   costMultiplierPerLevel: 1.3
-  damagePerSecond: 4
-  damageInterval: 2
+  damagePerSecond: 10
+  damageInterval: 1.5
   fogMaterial: {fileID: 2100000, guid: d48f871ac59bb034cb0c787fa2d9b595, type: 2}
   densityPropertyName: _DensityMultiplier
   insideDensity: 0
@@ -1218,6 +1254,74 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   forceFieldMaterial: {fileID: 2100000, guid: 6b21a92cd54274e44a9ffc19744096f1, type: 2}
   updateInEditor: 0
+--- !u!1 &692106756
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 692106758}
+  - component: {fileID: 692106757}
+  m_Layer: 0
+  m_Name: CardUpgradeManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &692106757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 692106756}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bca2b46f0b320643bf26bdca0522512, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cardPrefab: {fileID: 8842003512686903292, guid: ed6f6d70444c5484fa749dd9220c8254,
+    type: 3}
+  cardParent: {fileID: 195192776}
+  targetCanvas: {fileID: 1378774905}
+  canvasPlaneDistance: 0.3
+  cardSpacing: 500
+  cardYOffset: 0
+  upgradeWeights:
+  - type: 0
+    weight: 1
+  - type: 1
+    weight: 1
+  - type: 2
+    weight: 1
+  - type: 3
+    weight: 1
+  - type: 4
+    weight: 1
+  - type: 5
+    weight: 1
+  - type: 6
+    weight: 1
+  - type: 7
+    weight: 1
+--- !u!4 &692106758
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 692106756}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 49.529816, y: 0.1854797, z: -44.259113}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &722843904
 GameObject:
   m_ObjectHideFlags: 0
@@ -2039,7 +2143,7 @@ Canvas:
   serializedVersion: 3
   m_RenderMode: 1
   m_Camera: {fileID: 1518151414}
-  m_PlaneDistance: 100
+  m_PlaneDistance: 0.3
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
   m_OverrideSorting: 0
@@ -2049,7 +2153,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 32767
   m_TargetDisplay: 0
 --- !u!224 &1378774906
 RectTransform:
@@ -2067,6 +2171,7 @@ RectTransform:
   - {fileID: 463150288}
   - {fileID: 1640073466}
   - {fileID: 1599487375}
+  - {fileID: 195192776}
   - {fileID: 1050973815}
   - {fileID: 232163036}
   - {fileID: 879861516}
@@ -2542,7 +2647,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 30, y: -30}
+  m_AnchoredPosition: {x: 30, y: -120}
   m_SizeDelta: {x: 400, y: 50}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1640073467
@@ -3120,6 +3225,81 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1724706581}
   m_CullTransparentMesh: 1
+--- !u!1 &1754425738
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1754425739}
+  - component: {fileID: 1754425741}
+  - component: {fileID: 1754425740}
+  m_Layer: 5
+  m_Name: Panel
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &1754425739
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754425738}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 195192776}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &1754425740
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754425738}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 0, g: 0, b: 0, a: 0.7019608}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &1754425741
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1754425738}
+  m_CullTransparentMesh: 1
 --- !u!1 &1813419972
 GameObject:
   m_ObjectHideFlags: 0
@@ -3286,8 +3466,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyPoolTag: SpiderRobot
-  spawnInterval: 3
-  maxActiveEnemies: 5
+  baseSpawnInterval: 6
+  baseMaxEnemies: 10
+  difficultyIncreaseInterval: 30
+  spawnIntervalDecrease: 0.2
+  minSpawnInterval: 0.5
+  maxEnemiesIncrease: 4
+  absoluteMaxEnemies: 100
+  enemyHealthMultiplierIncrease: 0.1
+  enemyDamageMultiplierIncrease: 0.05
   minDistance: 40
   maxDistance: 70
   spawnHeightOffset: 1
@@ -3816,3 +4003,4 @@ SceneRoots:
   - {fileID: 512510438}
   - {fileID: 649126338}
   - {fileID: 383483855}
+  - {fileID: 692106758}

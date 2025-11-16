@@ -738,7 +738,6 @@ MonoBehaviour:
   swimSpeed: 3
   swimVerticalSpeed: 2
   swimJumpForce: 8
-  exitWaterHeightThreshold: 0.3
   landingSpeedMultiplier: 0.3
   landingRecoveryTime: 0.6
   minFallSpeedForLanding: 1.5
@@ -1162,7 +1161,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 96edc07ec7ceca2409ea860555532003, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  died: 0
 --- !u!114 &4187518083801446474
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1184,7 +1182,7 @@ MonoBehaviour:
   moveSpeedMultiplier: 1
   jumpForceMultiplier: 1
   maxJumpCount: 1
-  currentEnergy: 1000000
+  currentEnergy: 0
   takeDamageShake: {fileID: 11400000, guid: aeadd0db02e7c52458509356173ad3e6, type: 2}
   shaker: {fileID: 6369244619739246064}
   damageEffectDuration: 0.5

@@ -34,7 +34,7 @@ Material:
     m_Floats:
     - _ColorMask: 15
     - _CullMode: 0
-    - _EmissionIntensity: 4.73
+    - _EmissionIntensity: 7.65
     - _FaceDilate: 0
     - _GlowInner: 0.05
     - _GlowIntensity: 1

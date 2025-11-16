@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 8816768052471184917}
   - component: {fileID: 5036595211844920574}
   - component: {fileID: 3069288700088437364}
-  - component: {fileID: 4796043151572125032}
+  - component: {fileID: 8743359569546163578}
   m_Layer: 0
   m_Name: Cube
   m_TagString: Untagged
@@ -123,8 +123,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e68764e3e01ac9489627f7e14181f8f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  requiredEnergy: 50
---- !u!114 &4796043151572125032
+  requiredEnergy: 6
+--- !u!114 &8743359569546163578
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -133,7 +133,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 4283224990839295995}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9e1fec31011594647bcecd366ae578ca, type: 3}
+  m_Script: {fileID: 11500000, guid: 6966455047ea33a499d29670918dbe9d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   targetType: 1
@@ -148,25 +148,31 @@ MonoBehaviour:
   useManualCenter: 0
   manualCenterOffset: {x: 0, y: 0, z: 0}
   manualBoundsSize: {x: 2, y: 2, z: 2}
-  boxColor: {r: 0.6923754, g: 1, b: 0, a: 1}
-  boxPadding: 20
+  boxColor: {r: 1, g: 0.83413935, b: 0, a: 1}
+  boxPadding: 30
   lineThickness: 4
   useCornerOnly: 0
   cornerLength: 20
   showName: 1
   fadeWithDistance: 1
   maxTextVisibleDistance: 50
-  maxVisibleDistance: 60
+  maxVisibleDistance: 100
   minVisibleDistance: 2
   checkOcclusion: 1
   occlusionLayers:
     serializedVersion: 2
-    m_Bits: 213269
+    m_Bits: 227639
   raycastCount: 3
   showOnlyInCameraView: 0
   cameraViewAngle: 60
   useLateUpdate: 1
   showDebugGizmos: 0
+  interactionKey: 102
+  requireVisible: 1
+  baseOpenCost: 6
+  costMultiplier: 1.5
+  timesOpened: 0
+  cardsToSpawn: 3
 --- !u!1 &7145428415104092252
 GameObject:
   m_ObjectHideFlags: 0

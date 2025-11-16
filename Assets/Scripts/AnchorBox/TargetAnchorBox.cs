@@ -630,9 +630,9 @@ public class TargetAnchorBox : MonoBehaviour
         {
             float currentHealth = enemyAI.GetHealth();
             float enemyDamage = enemyAI.GetDamage();
-        
+    
             string hpColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-            infoText.text = $"<color=#{hpColorHex}>HP: {Mathf.RoundToInt(currentHealth)}</color>\n<color=#FF8800>Damage: {Mathf.RoundToInt(enemyDamage)}</color>";
+            infoText.text = $"<color=#{hpColorHex}>HP: {currentHealth:F1}</color>\n<color=#FF8800>Damage: {enemyDamage:F1}</color>";
         }
         else
         {
@@ -644,11 +644,11 @@ public class TargetAnchorBox : MonoBehaviour
     
     private void UpdateBoxInfo()
     {
-        var boxComponent = GetComponent<Box>();
+        var boxAnchorBox = GetComponent<BoxAnchorBox>();
     
-        if (boxComponent != null)
+        if (boxAnchorBox != null)
         {
-            int requiredEnergy = boxComponent.requiredEnergy;
+            int requiredEnergy = boxAnchorBox.GetCurrentCost();
             int playerEnergy = PlayerStats.Instance != null ? PlayerStats.Instance.GetEnergy() : 0;
         
             string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
@@ -665,7 +665,7 @@ public class TargetAnchorBox : MonoBehaviour
         else
         {
             string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-            infoText.text = $"<color=#{boxColorHex}>[E] Open Box\nEnergy: ?/?</color>";
+            infoText.text = $"<color=#{boxColorHex}>[F] Open Box\nEnergy: ?/?</color>";
         }
     }
     

@@ -1,15 +1,21 @@
 using UnityEngine;
 using System.Collections;
 
-/// <summary>
-/// 오브젝트 풀을 사용하는 적 스포너
-/// </summary>
 public class PooledSpawner : MonoBehaviour
 {
     [Header("스폰 설정")]
     [SerializeField] private string enemyPoolTag = "Enemy";
-    [SerializeField] private float spawnInterval = 3f;
-    [SerializeField] private int maxActiveEnemies = 10;
+    [SerializeField] private float baseSpawnInterval = 3f;
+    [SerializeField] private int baseMaxEnemies = 10;
+    
+    [Header("난이도 설정")]
+    [SerializeField] private float difficultyIncreaseInterval = 60f;
+    [SerializeField] private float spawnIntervalDecrease = 0.2f;
+    [SerializeField] private float minSpawnInterval = 0.5f;
+    [SerializeField] private int maxEnemiesIncrease = 2;
+    [SerializeField] private int absoluteMaxEnemies = 50;
+    [SerializeField] private float enemyHealthMultiplierIncrease = 0.1f;
+    [SerializeField] private float enemyDamageMultiplierIncrease = 0.05f;
     
     [Header("스폰 범위")]
     [SerializeField] private float minDistance = 10f;
@@ -27,9 +33,18 @@ public class PooledSpawner : MonoBehaviour
     private int currentActiveCount = 0;
     private bool isSpawning = false;
     
+    private int currentDifficultyLevel = 0;
+    private float currentSpawnInterval;
+    private int currentMaxEnemies;
+    private float currentHealthMultiplier = 1f;
+    private float currentDamageMultiplier = 1f;
+    private float difficultyTimer = 0f;
+    
     void Start()
     {
-        // ★ 타겟 자동 찾기 (GameManager에서 SetTarget으로 설정하는 것이 더 안전)
+        currentSpawnInterval = baseSpawnInterval;
+        currentMaxEnemies = baseMaxEnemies;
+        
         if (target == null)
         {
             GameObject player = GameObject.FindWithTag("Player");
@@ -40,26 +55,48 @@ public class PooledSpawner : MonoBehaviour
             }
             else
             {
-                Debug.LogWarning("[PooledSpawner] 플레이어를 찾을 수 없습니다. SetTarget()으로 수동 설정이 필요합니다.");
+                Debug.LogWarning("[PooledSpawner] 플레이어를 찾을 수 없습니다.");
             }
         }
         
-        // ★ GameManager에서 StartSpawning()을 호출할 때까지 대기
         Debug.Log("[PooledSpawner] 준비 완료. GameManager의 신호 대기 중...");
     }
     
-    /// <summary>
-    /// 외부에서 타겟(플레이어) 설정
-    /// </summary>
+    void Update()
+    {
+        if (!isSpawning) return;
+        
+        difficultyTimer += Time.deltaTime;
+        
+        if (difficultyTimer >= difficultyIncreaseInterval)
+        {
+            IncreaseDifficulty();
+            difficultyTimer = 0f;
+        }
+    }
+    
+    private void IncreaseDifficulty()
+    {
+        currentDifficultyLevel++;
+        
+        currentSpawnInterval = Mathf.Max(minSpawnInterval, currentSpawnInterval - spawnIntervalDecrease);
+        currentMaxEnemies = Mathf.Min(absoluteMaxEnemies, currentMaxEnemies + maxEnemiesIncrease);
+        currentHealthMultiplier += enemyHealthMultiplierIncrease;
+        currentDamageMultiplier += enemyDamageMultiplierIncrease;
+        
+        Debug.Log($"[PooledSpawner] 난이도 증가! Level {currentDifficultyLevel}");
+        Debug.Log($"  - 스폰 간격: {currentSpawnInterval:F1}s");
+        Debug.Log($"  - 최대 적 수: {currentMaxEnemies}");
+        Debug.Log($"  - 체력 배율: x{currentHealthMultiplier:F1}");
+        Debug.Log($"  - 데미지 배율: x{currentDamageMultiplier:F1}");
+    }
+    
     public void SetTarget(Transform newTarget)
     {
         target = newTarget;
         Debug.Log($"[PooledSpawner] 타겟 설정됨: {newTarget.name}");
     }
     
-    /// <summary>
-    /// 적 스폰 시작 (GameManager에서 호출)
-    /// </summary>
     public void StartSpawning()
     {
         if (isSpawning)
@@ -70,18 +107,16 @@ public class PooledSpawner : MonoBehaviour
         
         if (target == null)
         {
-            Debug.LogError("[PooledSpawner] 타겟이 설정되지 않았습니다! 스폰을 시작할 수 없습니다.");
+            Debug.LogError("[PooledSpawner] 타겟이 설정되지 않았습니다!");
             return;
         }
         
         isSpawning = true;
+        difficultyTimer = 0f;
         Debug.Log("[PooledSpawner] ✓ 적 스폰 시작!");
         StartCoroutine(SpawnRoutine());
     }
     
-    /// <summary>
-    /// 적 스폰 중지
-    /// </summary>
     public void StopSpawning()
     {
         if (!isSpawning)
@@ -99,20 +134,12 @@ public class PooledSpawner : MonoBehaviour
     {
         while (isSpawning)
         {
-            if (currentActiveCount < maxActiveEnemies)
+            if (currentActiveCount < currentMaxEnemies)
             {
                 SpawnEnemy();
             }
-            else
-            {
-                // 최대 수에 도달하면 로그 (너무 많이 출력되지 않도록 조건부)
-                if (Random.value < 0.1f) // 10% 확률로만 출력
-                {
-                    Debug.Log($"[PooledSpawner] 최대 적 수 도달: {currentActiveCount}/{maxActiveEnemies}");
-                }
-            }
             
-            yield return new WaitForSeconds(spawnInterval);
+            yield return new WaitForSeconds(currentSpawnInterval);
         }
         
         Debug.Log("[PooledSpawner] 스폰 루틴 종료");
@@ -129,7 +156,7 @@ public class PooledSpawner : MonoBehaviour
         
         if (target == null)
         {
-            Debug.LogWarning("[PooledSpawner] 타겟이 없습니다! 스폰 중지...");
+            Debug.LogWarning("[PooledSpawner] 타겟이 없습니다!");
             StopSpawning();
             return;
         }
@@ -142,7 +169,12 @@ public class PooledSpawner : MonoBehaviour
         {
             currentActiveCount++;
             
-            // EnemyDeathNotifier 설정
+            EnemyAI enemyAI = enemy.GetComponent<EnemyAI>();
+            if (enemyAI != null)
+            {
+                enemyAI.SetDifficultyMultipliers(currentHealthMultiplier, currentDamageMultiplier);
+            }
+            
             EnemyDeathNotifier notifier = enemy.GetComponent<EnemyDeathNotifier>();
             if (notifier == null)
             {
@@ -150,15 +182,10 @@ public class PooledSpawner : MonoBehaviour
             }
             notifier.OnDeath = () => OnEnemyDied();
             
-            // 첫 5마리만 로그 출력
             if (currentActiveCount <= 5)
             {
-                Debug.Log($"[PooledSpawner] 적 #{currentActiveCount} 스폰: {spawnPos} (활성: {currentActiveCount}/{maxActiveEnemies})");
+                Debug.Log($"[PooledSpawner] 적 #{currentActiveCount} 스폰 (Level {currentDifficultyLevel})");
             }
-        }
-        else
-        {
-            Debug.LogWarning($"[PooledSpawner] 적 스폰 실패! 풀에 '{enemyPoolTag}' 태그의 오브젝트가 있는지 확인하세요.");
         }
     }
     
@@ -168,7 +195,6 @@ public class PooledSpawner : MonoBehaviour
         
         for (int i = 0; i < maxAttempts; i++)
         {
-            // 타겟 주변 원형으로 랜덤 위치 생성
             float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
             float distance = Random.Range(minDistance, maxDistance);
             
@@ -178,93 +204,66 @@ public class PooledSpawner : MonoBehaviour
                 Mathf.Sin(angle) * distance
             );
             
-            // 지형에 레이캐스트
             if (Physics.Raycast(randomPos, Vector3.down, out RaycastHit hit, raycastDistance, groundLayer))
             {
-                // 경사도 체크 (너무 가파른 곳 제외)
                 float slopeAngle = Vector3.Angle(hit.normal, Vector3.up);
                 
-                if (slopeAngle < 45f) // 45도 이하만 허용
+                if (slopeAngle < 45f)
                 {
                     Vector3 spawnPos = hit.point + Vector3.up * spawnHeightOffset;
-                    
-                    // 디버그 라인 (녹색 = 성공)
-                    Debug.DrawLine(randomPos, hit.point, Color.green, 2f);
                     return spawnPos;
                 }
-                else
-                {
-                    // 너무 가파름 (노란색)
-                    Debug.DrawLine(randomPos, hit.point, Color.yellow, 2f);
-                }
-            }
-            else
-            {
-                // 땅을 찾지 못함 (빨간색)
-                Debug.DrawRay(randomPos, Vector3.down * raycastDistance, Color.red, 2f);
             }
         }
         
-        // 모든 시도 실패 시 타겟 근처로 폴백
-        Debug.LogWarning("[PooledSpawner] 적절한 스폰 위치를 찾지 못했습니다. 타겟 근처에 스폰합니다.");
         return target.position + Vector3.up * spawnHeightOffset + Random.insideUnitSphere * 3f;
     }
     
     void OnEnemyDied()
     {
         currentActiveCount = Mathf.Max(0, currentActiveCount - 1);
+    }
+    
+    public int GetActiveEnemyCount() => currentActiveCount;
+    public bool IsSpawning() => isSpawning;
+    public int GetDifficultyLevel() => currentDifficultyLevel;
+    public float GetCurrentSpawnInterval() => currentSpawnInterval;
+    public int GetCurrentMaxEnemies() => currentMaxEnemies;
+    public float GetHealthMultiplier() => currentHealthMultiplier;
+    public float GetDamageMultiplier() => currentDamageMultiplier;
+    
+    public void ResetDifficulty()
+    {
+        currentDifficultyLevel = 0;
+        currentSpawnInterval = baseSpawnInterval;
+        currentMaxEnemies = baseMaxEnemies;
+        currentHealthMultiplier = 1f;
+        currentDamageMultiplier = 1f;
+        difficultyTimer = 0f;
         
-        // 처음 몇 마리만 로그 출력
-        if (currentActiveCount < 5)
-        {
-            Debug.Log($"[PooledSpawner] 적 사망 (남은 적: {currentActiveCount}/{maxActiveEnemies})");
-        }
+        Debug.Log("[PooledSpawner] 난이도 초기화됨");
     }
     
-    /// <summary>
-    /// 현재 활성화된 적의 수
-    /// </summary>
-    public int GetActiveEnemyCount()
-    {
-        return currentActiveCount;
-    }
-    
-    /// <summary>
-    /// 스폰 중인지 확인
-    /// </summary>
-    public bool IsSpawning()
-    {
-        return isSpawning;
-    }
-    
-    /// <summary>
-    /// 모든 적 제거
-    /// </summary>
     public void ClearAllEnemies()
     {
         if (ObjectPool.Instance != null)
         {
-            // 풀의 모든 적 비활성화
             ObjectPool.Instance.DespawnAll(enemyPoolTag);
             currentActiveCount = 0;
             Debug.Log("[PooledSpawner] 모든 적 제거됨");
         }
     }
     
-    // ★ Gizmos로 스폰 범위 표시
     void OnDrawGizmosSelected()
     {
         if (target == null) return;
         
-        // 최소 거리 (녹색)
         Gizmos.color = new Color(0, 1, 0, 0.2f);
         DrawCircle(target.position, minDistance, 32);
         
-        // 최대 거리 (노란색)
         Gizmos.color = new Color(1, 1, 0, 0.2f);
         DrawCircle(target.position, maxDistance, 32);
         
-        // 타겟 위치
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(target.position, 1f);
     }
@@ -289,9 +288,6 @@ public class PooledSpawner : MonoBehaviour
     }
 }
 
-/// <summary>
-/// 적이 죽었을 때 스포너에 알림을 보내는 헬퍼 컴포넌트
-/// </summary>
 public class EnemyDeathNotifier : MonoBehaviour
 {
     public System.Action OnDeath;

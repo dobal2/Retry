@@ -511,7 +511,7 @@ MonoBehaviour:
   alwaysShow: 1
   boundsSource: 1
   cacheBounds: 1
-  boundsUpdateInterval: 0.1
+  boundsUpdateInterval: 0.2
   autoFixBounds: 1
   minBoundsSize: 0.5
   maxBoundsSize: 50

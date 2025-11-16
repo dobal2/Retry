@@ -3,8 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody))]
-public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
-
+public class EnemyAI : MonoBehaviour, IDamageable, IPoolable
 {
     [Header("Movement")]
     [SerializeField] protected float moveSpeed = 3.5f;
@@ -15,7 +14,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     [SerializeField] protected float damage = 1;
     
     [Header("Detection")]
-    [SerializeField] protected float  detectionRange = 15f;
+    [SerializeField] protected float detectionRange = 15f;
     
     [Header("Obstacle Avoidance")]
     [SerializeField] private float obstacleDetectionDistance = 2f;
@@ -35,11 +34,14 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     [SerializeField] private float currentHealth;
     
     [Header("Death Effect")]
-    [SerializeField] protected float fadeOutDuration = 1.5f; // ★ protected로 변경
+    [SerializeField] protected float fadeOutDuration = 1.5f;
     [SerializeField] private float destroyDelay = 0.5f;
-
-    [Header("Drop Item")] 
-    [SerializeField] private GameObject dropItem;
+    
+    
+    [Header("Energy Drop")]
+    [SerializeField] private GameObject energyCorePrefab;
+    [SerializeField] private int baseMinDrop = 2;
+    [SerializeField] private int baseMaxDrop = 3;
 
     [Header("Material")] 
     [SerializeField] private Material[] materials;
@@ -57,18 +59,27 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     
     private bool isInWater = false;
     
-    protected TargetAnchorBox anchorBox; // ★ protected로 변경
-    protected Animator anim; // ★ protected로 변경
+    protected TargetAnchorBox anchorBox;
+    protected Animator anim;
     
-    // ★ 여러 렌더러의 메테리얼을 각각 관리
     private MeshRenderer[] meshRenderers;
-    private List<Material[]> allMaterialInstances = new List<Material[]>(); // 각 렌더러별 메테리얼 배열
+    private List<Material[]> allMaterialInstances = new List<Material[]>();
     
-    void Start()
+    private float baseMaxHealth;
+    private float baseDamage;
+    
+    void Awake()
     {
         rb = GetComponent<Rigidbody>();
         anim = GetComponentInChildren<Animator>();
         meshRenderers = GetComponentsInChildren<MeshRenderer>();
+        
+        baseMaxHealth = maxHealth;
+        baseDamage = damage;
+    }
+    
+    void Start()
+    {
         mapIcon.SetActive(true);
         
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
@@ -84,11 +95,9 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         else
             Debug.LogError("Player not found!");
         
-        // ★ 메테리얼 인스턴스화 (독립적인 메테리얼 생성)
         InitializeMaterialInstances();
     }
     
-    // ★ 모든 렌더러의 메테리얼을 인스턴스화
     void InitializeMaterialInstances()
     {
         allMaterialInstances.Clear();
@@ -99,7 +108,6 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             {
                 if (renderer != null)
                 {
-                    // 각 렌더러의 메테리얼을 복사하여 인스턴스 생성
                     Material[] originalMaterials = renderer.sharedMaterials;
                     Material[] instanceMaterials = new Material[originalMaterials.Length];
                     
@@ -111,10 +119,7 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
                         }
                     }
                     
-                    // 렌더러에 인스턴스화된 메테리얼 적용
                     renderer.materials = instanceMaterials;
-                    
-                    // 리스트에 저장
                     allMaterialInstances.Add(instanceMaterials);
                 }
             }
@@ -130,7 +135,6 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
                 isInWater = true;
                 rb.useGravity = false;
                 rb.linearDamping = 2f;
-                Debug.Log($"<color=cyan>[Enemy] {gameObject.name} entered water!</color>");
             }
         }
     }
@@ -142,12 +146,13 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             isInWater = false;
             rb.useGravity = true;
             rb.linearDamping = 0f;
-            Debug.Log($"<color=green>[Enemy] {gameObject.name} exited water!</color>");
         }
     }
     
     public void OnSpawn()
     {
+        maxHealth = baseMaxHealth;
+        damage = baseDamage;
         currentHealth = maxHealth;
         isDead = false;
         isFrozen = false;
@@ -163,7 +168,6 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             rb.linearDamping = 0f;
         }
     
-        // ★ 메테리얼 재인스턴스화 (풀링 시에도 독립적으로)
         InitializeMaterialInstances();
         ResetTransparency();
         
@@ -219,6 +223,13 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         }
     }
     
+    public void SetDifficultyMultipliers(float healthMultiplier, float damageMultiplier)
+    {
+        maxHealth = baseMaxHealth * healthMultiplier;
+        currentHealth = maxHealth;
+        damage = baseDamage * damageMultiplier;
+    }
+    
     protected void CheckTimeStopState()
     {
         bool shouldBeFrozen = TimeStopManager.Instance.ShouldBeFrozen(entityType);
@@ -246,8 +257,6 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             rb.angularVelocity = Vector3.zero;
             rb.isKinematic = true;
         }
-
-        Debug.Log($"[Enemy] {gameObject.name} frozen!");
     }
     
     private void UnfreezeEntity()
@@ -260,22 +269,16 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             rb.angularVelocity = frozenAngularVelocity;
             rb.isKinematic = false;
         }
-
-        Debug.Log($"[Enemy] {gameObject.name} unfrozen!");
     }
 
-    protected virtual void FixedUpdate() // ★ virtual로 변경
+    protected virtual void FixedUpdate()
     {
         if (isDead) return;
-        if(isFrozen)
-            return;
+        if (isFrozen) return;
         
         if (moveDirection != Vector3.zero)
         {
             Move();
-        }
-        else
-        {
         }
     }
 
@@ -311,11 +314,9 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         
         if (Physics.Raycast(rayStart, diagonalDown, out RaycastHit hit, waterRayDistance, waterLayer))
         {
-            Debug.DrawRay(rayStart, diagonalDown * waterRayDistance, Color.red, 0.1f);
             return true;
         }
         
-        Debug.DrawRay(rayStart, diagonalDown * waterRayDistance, Color.green, 0.1f);
         return false;
     }
 
@@ -349,14 +350,12 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             rb.MoveRotation(newRotation);
         }
     }
-    
 
     public void TakeDamage(float damage)
     {
         if (isDead) return;
 
         currentHealth -= damage;
-        Debug.Log($"{gameObject.name} took {damage} damage. Current HP: {currentHealth}/{maxHealth}");
         
         OnHit();
 
@@ -374,9 +373,8 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
     protected virtual void Die()
     {
         if (isDead) return;
-    
+
         isDead = true;
-        Debug.Log($"{gameObject.name} died!");
 
         moveDirection = Vector3.zero;
         rb.linearVelocity = Vector3.zero;
@@ -387,24 +385,49 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
             anim.SetBool("isWalking", false);
         }
 
-        // ★ 콜라이더 끄기 전에 앵커박스에 신호 보내기!
         if (anchorBox != null)
         {
             anchorBox.CacheBoundsForDeath();
-            anchorBox.SetUIAlpha(0.99f); // 사망 시작 신호
+            anchorBox.SetUIAlpha(0.99f);
         }
 
-        DropItem();
+        DropEnergy();
 
         StartCoroutine(FadeOutAndDestroy());
     }
-
-    void DropItem()
+    
+    
+    protected virtual void DropEnergy()
     {
-        if (dropItem == null) return;
-
-        Vector3 dropPosition = transform.position + Vector3.up * 0.5f;
-        GameObject droppedItem = Instantiate(dropItem, dropPosition, Quaternion.identity);
+        if (energyCorePrefab == null) return;
+    
+        int difficultyBonus = 0;
+        PooledSpawner spawner = FindObjectOfType<PooledSpawner>();
+        if (spawner != null)
+        {
+            difficultyBonus = spawner.GetDifficultyLevel();
+        }
+    
+        int minDrop = baseMinDrop + difficultyBonus;
+        int maxDrop = baseMaxDrop + difficultyBonus;
+    
+        int dropCount = Random.Range(minDrop, maxDrop + 1);
+    
+        float angleStep = 360f / dropCount;
+    
+        for (int i = 0; i < dropCount; i++)
+        {
+            Vector3 spawnPos = transform.position + Vector3.up * 0.5f;
+            GameObject energyObj = Instantiate(energyCorePrefab, spawnPos, Quaternion.identity);
+        
+            Energy energyCore = energyObj.GetComponent<Energy>();
+            if (energyCore != null)
+            {
+                float angle = i * angleStep * Mathf.Deg2Rad;
+                Vector3 direction = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                energyCore.LaunchWithDirection(direction, 3f, 4f);
+            }
+        }
     }
 
     protected virtual IEnumerator FadeOutAndDestroy()
@@ -413,13 +436,11 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         float startAlpha = 0f;
         float targetAlpha = 1f;
 
-        // ★ 약간의 딜레이 후 콜라이더 끄기 (앵커박스가 Bounds 캐시할 시간 확보)
         yield return null;
         yield return null;
         
         mapIcon.SetActive(false);
 
-        // ★ 이제 콜라이더 끄기
         Collider[] colliders = GetComponentsInChildren<Collider>();
         foreach (Collider col in colliders)
         {
@@ -453,9 +474,8 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         return damage;
     }
     
-    protected void SetTransparency(float transparency) // ★ protected로 변경
+    protected void SetTransparency(float transparency)
     {
-        // ★ 모든 렌더러의 모든 메테리얼에 적용
         foreach (Material[] materialArray in allMaterialInstances)
         {
             foreach (Material material in materialArray)
@@ -476,7 +496,6 @@ public class EnemyAI : MonoBehaviour,IDamageable,IPoolable
         return currentHealth / maxHealth;
     }
     
-    // ★ 메테리얼 인스턴스 메모리 정리
     void OnDestroy()
     {
         foreach (Material[] materialArray in allMaterialInstances)
