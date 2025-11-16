@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using TMPro;
 
 public class PooledSpawner : MonoBehaviour
 {
@@ -10,12 +11,16 @@ public class PooledSpawner : MonoBehaviour
     
     [Header("난이도 설정")]
     [SerializeField] private float difficultyIncreaseInterval = 60f;
-    [SerializeField] private float spawnIntervalDecrease = 0.2f;
+    [SerializeField] private float baseSpawnIntervalDecrease = 0.1f;
     [SerializeField] private float minSpawnInterval = 0.5f;
-    [SerializeField] private int maxEnemiesIncrease = 2;
+    [SerializeField] private int baseMaxEnemiesIncrease = 1;
     [SerializeField] private int absoluteMaxEnemies = 50;
-    [SerializeField] private float enemyHealthMultiplierIncrease = 0.1f;
-    [SerializeField] private float enemyDamageMultiplierIncrease = 0.05f;
+    [SerializeField] private float baseHealthMultiplierIncrease = 0.05f;
+    [SerializeField] private float baseDamageMultiplierIncrease = 0.025f;
+    [SerializeField] private float difficultyScalingRate = 0.1f;
+    
+    [Header("UI")]
+    [SerializeField] private TextMeshProUGUI difficultyText;
     
     [Header("스폰 범위")]
     [SerializeField] private float minDistance = 10f;
@@ -51,15 +56,10 @@ public class PooledSpawner : MonoBehaviour
             if (player != null)
             {
                 target = player.transform;
-                Debug.Log($"[PooledSpawner] 타겟 자동 발견: {player.name}");
-            }
-            else
-            {
-                Debug.LogWarning("[PooledSpawner] 플레이어를 찾을 수 없습니다.");
             }
         }
         
-        Debug.Log("[PooledSpawner] 준비 완료. GameManager의 신호 대기 중...");
+        UpdateDifficultyUI();
     }
     
     void Update()
@@ -73,61 +73,75 @@ public class PooledSpawner : MonoBehaviour
             IncreaseDifficulty();
             difficultyTimer = 0f;
         }
+        
+        UpdateDifficultyUI();
     }
     
     private void IncreaseDifficulty()
     {
         currentDifficultyLevel++;
         
-        currentSpawnInterval = Mathf.Max(minSpawnInterval, currentSpawnInterval - spawnIntervalDecrease);
-        currentMaxEnemies = Mathf.Min(absoluteMaxEnemies, currentMaxEnemies + maxEnemiesIncrease);
-        currentHealthMultiplier += enemyHealthMultiplierIncrease;
-        currentDamageMultiplier += enemyDamageMultiplierIncrease;
+        float scalingFactor = 1f + (currentDifficultyLevel * difficultyScalingRate);
         
-        Debug.Log($"[PooledSpawner] 난이도 증가! Level {currentDifficultyLevel}");
-        Debug.Log($"  - 스폰 간격: {currentSpawnInterval:F1}s");
-        Debug.Log($"  - 최대 적 수: {currentMaxEnemies}");
-        Debug.Log($"  - 체력 배율: x{currentHealthMultiplier:F1}");
-        Debug.Log($"  - 데미지 배율: x{currentDamageMultiplier:F1}");
+        float spawnDecrease = baseSpawnIntervalDecrease * scalingFactor;
+        currentSpawnInterval = Mathf.Max(minSpawnInterval, currentSpawnInterval - spawnDecrease);
+        
+        int enemyIncrease = Mathf.RoundToInt(baseMaxEnemiesIncrease * scalingFactor);
+        currentMaxEnemies = Mathf.Min(absoluteMaxEnemies, currentMaxEnemies + enemyIncrease);
+        
+        float healthIncrease = baseHealthMultiplierIncrease * scalingFactor;
+        currentHealthMultiplier += healthIncrease;
+        
+        float damageIncrease = baseDamageMultiplierIncrease * scalingFactor;
+        currentDamageMultiplier += damageIncrease;
+    }
+    
+    private void UpdateDifficultyUI()
+    {
+        if (difficultyText == null) return;
+        
+        string difficultyName;
+        
+        if (currentDifficultyLevel == 0)
+            difficultyName = "Difficulty: Easy";
+        else if (currentDifficultyLevel <= 2)
+            difficultyName = "Difficulty: Normal";
+        else if (currentDifficultyLevel <= 4)
+            difficultyName = "Difficulty: Medium";
+        else if (currentDifficultyLevel <= 6)
+            difficultyName = "Difficulty: Hard";
+        else if (currentDifficultyLevel <= 9)
+            difficultyName = "Difficulty: Very Hard";
+        else if (currentDifficultyLevel <= 12)
+            difficultyName = "Difficulty: Insane";
+        else
+            difficultyName = "Difficulty: Gay";
+        
+        difficultyText.text = difficultyName;
     }
     
     public void SetTarget(Transform newTarget)
     {
         target = newTarget;
-        Debug.Log($"[PooledSpawner] 타겟 설정됨: {newTarget.name}");
     }
     
     public void StartSpawning()
     {
-        if (isSpawning)
-        {
-            Debug.LogWarning("[PooledSpawner] 이미 스폰 중입니다!");
-            return;
-        }
+        if (isSpawning) return;
         
-        if (target == null)
-        {
-            Debug.LogError("[PooledSpawner] 타겟이 설정되지 않았습니다!");
-            return;
-        }
+        if (target == null) return;
         
         isSpawning = true;
         difficultyTimer = 0f;
-        Debug.Log("[PooledSpawner] ✓ 적 스폰 시작!");
         StartCoroutine(SpawnRoutine());
     }
     
     public void StopSpawning()
     {
-        if (!isSpawning)
-        {
-            Debug.LogWarning("[PooledSpawner] 스폰이 시작되지 않았습니다!");
-            return;
-        }
+        if (!isSpawning) return;
         
         isSpawning = false;
         StopAllCoroutines();
-        Debug.Log("[PooledSpawner] ✓ 적 스폰 중지!");
     }
     
     IEnumerator SpawnRoutine()
@@ -141,22 +155,18 @@ public class PooledSpawner : MonoBehaviour
             
             yield return new WaitForSeconds(currentSpawnInterval);
         }
-        
-        Debug.Log("[PooledSpawner] 스폰 루틴 종료");
     }
     
     void SpawnEnemy()
     {
         if (ObjectPool.Instance == null)
         {
-            Debug.LogError("[PooledSpawner] ObjectPool이 씬에 없습니다!");
             StopSpawning();
             return;
         }
         
         if (target == null)
         {
-            Debug.LogWarning("[PooledSpawner] 타겟이 없습니다!");
             StopSpawning();
             return;
         }
@@ -181,11 +191,6 @@ public class PooledSpawner : MonoBehaviour
                 notifier = enemy.AddComponent<EnemyDeathNotifier>();
             }
             notifier.OnDeath = () => OnEnemyDied();
-            
-            if (currentActiveCount <= 5)
-            {
-                Debug.Log($"[PooledSpawner] 적 #{currentActiveCount} 스폰 (Level {currentDifficultyLevel})");
-            }
         }
     }
     
@@ -240,8 +245,6 @@ public class PooledSpawner : MonoBehaviour
         currentHealthMultiplier = 1f;
         currentDamageMultiplier = 1f;
         difficultyTimer = 0f;
-        
-        Debug.Log("[PooledSpawner] 난이도 초기화됨");
     }
     
     public void ClearAllEnemies()
@@ -250,7 +253,6 @@ public class PooledSpawner : MonoBehaviour
         {
             ObjectPool.Instance.DespawnAll(enemyPoolTag);
             currentActiveCount = 0;
-            Debug.Log("[PooledSpawner] 모든 적 제거됨");
         }
     }
     
