@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using System.Collections;
 using FirstGearGames.SmoothCameraShaker;
@@ -76,6 +77,12 @@ public class PlayerStats : MonoBehaviour
     [SerializeField] private float originalIntensity = 0.4f;
     [SerializeField] private float maxIntensity = 1f;
 
+    private GameObject GameoverScreen;
+
+    [SerializeField] private float healInterval;
+    private float healTimer;
+    
+
     [Header("Debug")]
     [SerializeField]
     private bool showDebugInfo = false;
@@ -88,6 +95,8 @@ public class PlayerStats : MonoBehaviour
     private Vignette vignette;
     private float originalVignetteIntensity;
     private Coroutine damageEffectCoroutine;
+    
+    
     
     #endregion
 
@@ -102,7 +111,13 @@ public class PlayerStats : MonoBehaviour
         }
         
         instance = this;
-        DontDestroyOnLoad(gameObject);
+        //DontDestroyOnLoad(gameObject);
+        
+        GameoverScreen = GameObject.Find("GameOver");
+        if (GameoverScreen != null)
+        {
+            GameoverScreen.SetActive(false);
+        }
         
         currentHealth = maxHealth;
         
@@ -174,6 +189,27 @@ public class PlayerStats : MonoBehaviour
                 damageMaterial.SetFloat("_BlurOffset", originalBlurOffset);
             if (damageMaterial.HasProperty("_Intensity"))
                 damageMaterial.SetFloat("_Intensity", originalIntensity);
+        }
+    }
+
+    private void Update()
+    {
+        healTimer += Time.deltaTime;
+        if (currentHealth <= 0)
+        {
+            GameoverScreen.SetActive(true);
+            Time.timeScale = 0;
+            StopAllCoroutines();
+            vignette.intensity.value = 0.1f;
+        }
+        else
+        {
+            if (healInterval <= healTimer)
+            {
+                healTimer = 0;
+                if(currentHealth < maxHealth)
+                    currentHealth += 1;
+            }
         }
     }
 

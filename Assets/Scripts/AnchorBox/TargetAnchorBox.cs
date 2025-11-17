@@ -2,14 +2,15 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+using System.Text;
 
 public class TargetAnchorBox : MonoBehaviour
 {
     public enum TargetType
     {
-        Enemy,       // HP, Damage 표시
-        Box,         // 여는데 필요한 에너지 표시
-        EnergyCore,  // 현재 레벨, 다음 레벨까지 필요한 것
+        Enemy,
+        Box,
+        EnergyCore,
         Ally,
         Item,
     }
@@ -28,9 +29,7 @@ public class TargetAnchorBox : MonoBehaviour
     
     [Header("Bounds Settings")]
     [SerializeField] private BoundsSourceType boundsSource = BoundsSourceType.Auto;
-    [SerializeField] private bool cacheBounds = true;
-    [SerializeField] private float boundsUpdateInterval = 0.1f;
-    [SerializeField] private bool autoFixBounds = true;
+    [SerializeField] private float boundsUpdateInterval = 0.2f; // ★ 0.1f → 0.2f
     [SerializeField] private float minBoundsSize = 0.5f;
     [SerializeField] private float maxBoundsSize = 50f;
     
@@ -56,26 +55,21 @@ public class TargetAnchorBox : MonoBehaviour
     [SerializeField] private float minVisibleDistance = 2f;
     
     [Header("Occlusion Settings")]
-    [SerializeField] private bool checkOcclusion = true;
+    [SerializeField] private bool checkOcclusion = false; // ★ 기본 OFF
     [SerializeField] private LayerMask occlusionLayers = -1;
-    [SerializeField] private int raycastCount = 3;
-    
-    [Header("Camera View Settings")]
-    [SerializeField] private bool showOnlyInCameraView = false;
-    [SerializeField] private float cameraViewAngle = 60f;
+    [SerializeField] private float occlusionCheckInterval = 0.3f; // ★ 추가
     
     [Header("Performance Settings")]
-    [SerializeField] private bool useLateUpdate = true;
-    
-    [Header("Debug")]
-    [SerializeField] private bool showDebugGizmos = false;
+    [SerializeField] private float uiUpdateInterval = 0.033f; // ★ 30fps로 UI 업데이트
+    [SerializeField] private float infoTextUpdateInterval = 0.1f; // ★ 텍스트는 더 느리게
     
     private Camera mainCamera;
+    private Transform mainCameraTransform; // ★ 캐싱
     private Canvas parentCanvas;
     protected RectTransform anchorBoxUI;
     private Image[] borderLines;
     private TextMeshProUGUI nameText;
-    private TextMeshProUGUI infoText; // ★ 통합 정보 텍스트
+    private TextMeshProUGUI infoText;
     
     private Renderer targetRenderer;
     private Collider targetCollider;
@@ -87,274 +81,94 @@ public class TargetAnchorBox : MonoBehaviour
     private Bounds lastValidBounds;
     private Bounds cachedBounds;
     private float lastBoundsUpdateTime;
+    private float lastUIUpdateTime;
+    private float lastInfoTextUpdateTime;
+    private float lastOcclusionCheckTime;
+    private bool lastOcclusionResult = true;
     private bool isDying = false;
     
     private Color originalBoxColor;
     private Coroutine colorTransitionCoroutine;
     
+    // ★ 캐싱
+    private Vector3[] boundsCorners = new Vector3[8];
+    private Vector2 cachedScreenMin;
+    private Vector2 cachedScreenMax;
+    private float cachedDistance;
+    private Vector3 cachedCameraPosition;
+    private StringBuilder stringBuilder = new StringBuilder(64); // ★ 문자열 재사용
+    
+    // ★ 스크린 Bounds 캐싱
+    private Bounds cachedScreenBounds;
+    private float lastScreenBoundsUpdateTime;
+    private float screenBoundsUpdateInterval = 0.05f; // ★ 20fps
+    
     private void Start()
     {
         mainCamera = Camera.main;
+        if (mainCamera != null)
+            mainCameraTransform = mainCamera.transform;
+            
         enemyAI = GetComponent<EnemyAI>();
         
         targetCollider = GetComponent<Collider>();
         targetRenderer = GetComponentInChildren<Renderer>();
         
-        ValidateBounds();
         SetDefaultColorByType();
-        
         originalBoxColor = boxColor;
-        AnchorBoxManager.Instance?.RegisterTarget(this);
         
+        AnchorBoxManager.Instance?.RegisterTarget(this);
         UpdateCachedBounds();
+        
+        // ★ 초기 코너 계산
+        PrecomputeBoundsCorners();
     }
     
     private void SetDefaultColorByType()
     {
+        if (boxColor != Color.red) return; // 이미 설정됨
+        
         switch (targetType)
         {
-            case TargetType.Enemy:
-                if (boxColor == Color.red) boxColor = Color.red;
-                break;
             case TargetType.Box:
-                if (boxColor == Color.red) boxColor = new Color(1f, 0.8f, 0f); // 골드색
+                boxColor = new Color(1f, 0.8f, 0f);
                 break;
             case TargetType.EnergyCore:
-                if (boxColor == Color.red) boxColor = Color.cyan;
+                boxColor = Color.cyan;
                 break;
             case TargetType.Ally:
-                if (boxColor == Color.red) boxColor = Color.green;
+                boxColor = Color.green;
                 break;
             case TargetType.Item:
-                if (boxColor == Color.red) boxColor = Color.yellow;
+                boxColor = Color.yellow;
                 break;
         }
     }
     
-    private void ValidateBounds()
+    // ★ Bounds 코너 미리 계산 (상대 위치)
+    private void PrecomputeBoundsCorners()
     {
-        Bounds testBounds = GetBoundsFromSource();
-        
-        if (testBounds.size.magnitude < 0.1f)
-        {
-            Debug.LogWarning($"{gameObject.name}: Bounds too small! Consider using Manual Bounds.");
-        }
-        
-        if (testBounds.size.magnitude > 100f)
-        {
-            Debug.LogWarning($"{gameObject.name}: Bounds too large! Check Renderer/Collider.");
-        }
-        
-        float distance = Vector3.Distance(testBounds.center, transform.position);
-        if (distance > 10f)
-        {
-            Debug.LogWarning($"{gameObject.name}: Bounds center far from object! Distance: {distance}m");
-        }
-        
-        if (targetCollider == null && targetRenderer == null)
-        {
-            Debug.LogWarning($"{gameObject.name}: No Collider or Renderer found! Using fallback bounds.");
-        }
-    }
-    
-    private void OnDrawGizmos()
-    {
-        if (!showDebugGizmos) return;
-        
-        Bounds bounds = GetBoundsFromSource();
-        
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireCube(bounds.center, bounds.size);
-        
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, 0.2f);
-        
-        #if UNITY_EDITOR
-        UnityEditor.Handles.Label(transform.position + Vector3.up, 
-            $"{gameObject.name}\nBounds: {bounds.size}\nCenter: {bounds.center}");
-        #endif
-    }
-    
-    private bool IsInCameraView()
-    {
-        if (!showOnlyInCameraView) return true;
-        
-        Vector3 directionToTarget = (transform.position - mainCamera.transform.position).normalized;
-        float angle = Vector3.Angle(mainCamera.transform.forward, directionToTarget);
-        
-        return angle < cameraViewAngle;
-    }
-    
-    private bool IsVisibleFromCamera()
-    {
-        if (!checkOcclusion) return true;
-        if (targetCollider == null && targetRenderer == null) return true;
-
-        Bounds bounds = GetCurrentBounds();
-
-        Vector3[] checkPoints = new Vector3[raycastCount];
-        checkPoints[0] = bounds.center;
-    
-        if (raycastCount >= 2)
-            checkPoints[1] = new Vector3(bounds.center.x, bounds.max.y, bounds.center.z);
-    
-        if (raycastCount >= 3)
-        {
-            checkPoints[2] = new Vector3(bounds.min.x, bounds.center.y, bounds.center.z);
-        }
-    
-        if (raycastCount >= 4)
-        {
-            checkPoints[3] = new Vector3(bounds.max.x, bounds.center.y, bounds.center.z);
-        }
-    
-        if (raycastCount >= 5)
-        {
-            checkPoints[4] = new Vector3(bounds.center.x, bounds.min.y, bounds.center.z);
-        }
-
-        for (int i = 0; i < Mathf.Min(raycastCount, checkPoints.Length); i++)
-        {
-            Vector3 direction = checkPoints[i] - mainCamera.transform.position;
-            float distance = direction.magnitude;
-
-            if (Physics.Raycast(mainCamera.transform.position, direction.normalized, out RaycastHit hit, distance, occlusionLayers))
-            {
-                if (hit.transform == transform || hit.transform.IsChildOf(transform))
-                {
-                    continue;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-    
-    private void UpdateCachedBounds()
-    {
-        cachedBounds = GetBoundsFromSource();
-        lastBoundsUpdateTime = Time.time;
-    }
-    
-    private Bounds GetBoundsFromSource()
-    {
-        if (useManualCenter)
-        {
-            return new Bounds(transform.position + manualCenterOffset, manualBoundsSize);
-        }
-        
-        Bounds bounds;
-        
-        switch (boundsSource)
-        {
-            case BoundsSourceType.Renderer:
-                if (targetRenderer != null)
-                    bounds = targetRenderer.bounds;
-                else
-                    bounds = new Bounds(transform.position, Vector3.one);
-                break;
-                
-            case BoundsSourceType.Collider:
-                if (targetCollider != null)
-                    bounds = targetCollider.bounds;
-                else
-                    bounds = new Bounds(transform.position, Vector3.one);
-                break;
-                
-            case BoundsSourceType.Auto:
-                if (targetCollider != null)
-                    bounds = targetCollider.bounds;
-                else if (targetRenderer != null)
-                    bounds = targetRenderer.bounds;
-                else
-                    bounds = new Bounds(transform.position, Vector3.one);
-                break;
-                
-            default:
-                bounds = new Bounds(transform.position, Vector3.one);
-                break;
-        }
-        
-        if (autoFixBounds)
-        {
-            bounds = FixInvalidBounds(bounds);
-        }
-        
-        return bounds;
-    }
-    
-    private Bounds FixInvalidBounds(Bounds bounds)
-    {
-        Vector3 size = bounds.size;
-        Vector3 center = bounds.center;
-        
-        if (size.x < minBoundsSize) size.x = minBoundsSize;
-        if (size.y < minBoundsSize) size.y = minBoundsSize;
-        if (size.z < minBoundsSize) size.z = minBoundsSize;
-        
-        if (size.x > maxBoundsSize || size.y > maxBoundsSize || size.z > maxBoundsSize)
-        {
-            Debug.LogWarning($"{gameObject.name}: Bounds too large! {size}");
-            size = Vector3.one * 2f;
-            center = transform.position;
-        }
-        
-        float distanceFromObject = Vector3.Distance(center, transform.position);
-        if (distanceFromObject > maxBoundsSize)
-        {
-            Debug.LogWarning($"{gameObject.name}: Bounds center too far! {distanceFromObject}m");
-            center = transform.position;
-        }
-        
-        if (float.IsNaN(size.x) || float.IsInfinity(size.x) ||
-            float.IsNaN(center.x) || float.IsInfinity(center.x))
-        {
-            Debug.LogError($"{gameObject.name}: Invalid Bounds values!");
-            return new Bounds(transform.position, Vector3.one * 2f);
-        }
-        
-        return new Bounds(center, size);
-    }
-    
-    private Bounds GetCurrentBounds()
-    {
-        if (isDying)
-        {
-            return lastValidBounds;
-        }
-        
-        if (cacheBounds)
-        {
-            if (Time.time - lastBoundsUpdateTime > boundsUpdateInterval)
-            {
-                UpdateCachedBounds();
-            }
-            return cachedBounds;
-        }
-        else
-        {
-            return GetBoundsFromSource();
-        }
+        Bounds bounds = cachedBounds;
+        boundsCorners[0] = bounds.min;
+        boundsCorners[1] = new Vector3(bounds.min.x, bounds.min.y, bounds.max.z);
+        boundsCorners[2] = new Vector3(bounds.min.x, bounds.max.y, bounds.min.z);
+        boundsCorners[3] = new Vector3(bounds.max.x, bounds.min.y, bounds.min.z);
+        boundsCorners[4] = new Vector3(bounds.min.x, bounds.max.y, bounds.max.z);
+        boundsCorners[5] = new Vector3(bounds.max.x, bounds.min.y, bounds.max.z);
+        boundsCorners[6] = new Vector3(bounds.max.x, bounds.max.y, bounds.min.z);
+        boundsCorners[7] = bounds.max;
     }
     
     private void OnDisable()
     {
         if (anchorBoxUI != null)
-        {
             anchorBoxUI.gameObject.SetActive(false);
-        }
     }
 
     private void OnEnable()
     {
         if (anchorBoxUI != null)
-        {
             anchorBoxUI.gameObject.SetActive(true);
-        }
         
         isDying = false;
         UpdateCachedBounds();
@@ -363,9 +177,7 @@ public class TargetAnchorBox : MonoBehaviour
     private void OnDestroy()
     {
         if (anchorBoxUI != null)
-        {
             Destroy(anchorBoxUI.gameObject);
-        }
     
         AnchorBoxManager.Instance?.UnregisterTarget(this);
     }
@@ -374,11 +186,7 @@ public class TargetAnchorBox : MonoBehaviour
     {
         parentCanvas = uiParent.GetComponentInParent<Canvas>();
         
-        if (parentCanvas == null)
-        {
-            Debug.LogError($"Canvas not found for {gameObject.name}!");
-            return;
-        }
+        if (parentCanvas == null) return;
         
         GameObject boxObj = new GameObject($"AnchorBox_{gameObject.name}");
         boxObj.transform.SetParent(uiParent, false);
@@ -393,7 +201,6 @@ public class TargetAnchorBox : MonoBehaviour
         if (showName)
             CreateNameText();
         
-        // ★ 타입별 UI 생성
         CreateInfoText();
     }
     
@@ -431,136 +238,110 @@ public class TargetAnchorBox : MonoBehaviour
         textRect.anchoredPosition = new Vector2(0, 10);
     }
     
-    // ★ 통합 정보 텍스트 생성 (타입별로 위치 조정)
     private void CreateInfoText()
-{
-    GameObject textObj = Instantiate(AnchorBoxManager.Instance.textTemplate);
-    textObj.name = "InfoText";
-    textObj.transform.SetParent(anchorBoxUI, false);
-
-    infoText = textObj.GetComponent<TextMeshProUGUI>();
-    infoText.color = boxColor; // ★ boxColor 따라감
-    
-    RectTransform textRect = textObj.GetComponent<RectTransform>();
-    
-    // ★ 타입별 위치 및 스타일 조정
-    switch (targetType)
     {
-        case TargetType.Enemy:
-            infoText.alignment = TextAlignmentOptions.Left;
-            infoText.fontSize = 34; // ★ 14 → 18
-            textRect.anchorMin = new Vector2(1f, 0.5f);
-            textRect.anchorMax = new Vector2(1f, 0.5f);
-            textRect.pivot = new Vector2(0f, 0.5f);
-            textRect.sizeDelta = new Vector2(420, 60); // ★ 크기 증가
-            textRect.anchoredPosition = new Vector2(10, 0);
-            break;
-            
-        case TargetType.Box:
-            infoText.alignment = TextAlignmentOptions.Center;
-            infoText.fontSize = 30; // ★ 14 → 16
-            textRect.anchorMin = new Vector2(0.5f, 0f);
-            textRect.anchorMax = new Vector2(0.5f, 0f);
-            textRect.pivot = new Vector2(0.5f, 1f);
-            textRect.sizeDelta = new Vector2(400, 50); // ★ 크기 증가
-            textRect.anchoredPosition = new Vector2(0, -10);
-            break;
-            
-        case TargetType.EnergyCore:
-            // ★ Enemy처럼 왼쪽 정렬, 옆에 표시
-            infoText.alignment = TextAlignmentOptions.Left;
-            infoText.fontSize = 34; // ★ 16 → 18
-            textRect.anchorMin = new Vector2(1f, 0.5f);
-            textRect.anchorMax = new Vector2(1f, 0.5f);
-            textRect.pivot = new Vector2(0f, 0.5f);
-            textRect.sizeDelta = new Vector2(250, 70); // ★ 크기 증가
-            textRect.anchoredPosition = new Vector2(10, 0);
-            break;
-            
-        default:
-            infoText.alignment = TextAlignmentOptions.Center;
-            infoText.fontSize = 34;
-            textRect.anchorMin = new Vector2(0.5f, 0f);
-            textRect.anchorMax = new Vector2(0.5f, 0f);
-            textRect.pivot = new Vector2(0.5f, 1f);
-            textRect.sizeDelta = new Vector2(180, 40);
-            textRect.anchoredPosition = new Vector2(0, -10);
-            break;
+        GameObject textObj = Instantiate(AnchorBoxManager.Instance.textTemplate);
+        textObj.name = "InfoText";
+        textObj.transform.SetParent(anchorBoxUI, false);
+
+        infoText = textObj.GetComponent<TextMeshProUGUI>();
+        infoText.color = boxColor;
+        
+        RectTransform textRect = textObj.GetComponent<RectTransform>();
+        
+        switch (targetType)
+        {
+            case TargetType.Enemy:
+                infoText.alignment = TextAlignmentOptions.Left;
+                infoText.fontSize = 34;
+                textRect.anchorMin = new Vector2(1f, 0.5f);
+                textRect.anchorMax = new Vector2(1f, 0.5f);
+                textRect.pivot = new Vector2(0f, 0.5f);
+                textRect.sizeDelta = new Vector2(420, 60);
+                textRect.anchoredPosition = new Vector2(10, 0);
+                break;
+                
+            case TargetType.Box:
+                infoText.alignment = TextAlignmentOptions.Center;
+                infoText.fontSize = 30;
+                textRect.anchorMin = new Vector2(0.5f, 0f);
+                textRect.anchorMax = new Vector2(0.5f, 0f);
+                textRect.pivot = new Vector2(0.5f, 1f);
+                textRect.sizeDelta = new Vector2(400, 50);
+                textRect.anchoredPosition = new Vector2(0, -10);
+                break;
+                
+            case TargetType.EnergyCore:
+                infoText.alignment = TextAlignmentOptions.Left;
+                infoText.fontSize = 34;
+                textRect.anchorMin = new Vector2(1f, 0.5f);
+                textRect.anchorMax = new Vector2(1f, 0.5f);
+                textRect.pivot = new Vector2(0f, 0.5f);
+                textRect.sizeDelta = new Vector2(250, 70);
+                textRect.anchoredPosition = new Vector2(10, 0);
+                break;
+                
+            default:
+                infoText.alignment = TextAlignmentOptions.Center;
+                infoText.fontSize = 34;
+                textRect.anchorMin = new Vector2(0.5f, 0f);
+                textRect.anchorMax = new Vector2(0.5f, 0f);
+                textRect.pivot = new Vector2(0.5f, 1f);
+                textRect.sizeDelta = new Vector2(180, 40);
+                textRect.anchoredPosition = new Vector2(0, -10);
+                break;
+        }
     }
-}
     
     private void LateUpdate()
     {
-        if (!useLateUpdate) return;
+        if (anchorBoxUI == null) return;
         
         if (mainCamera == null)
         {
             mainCamera = Camera.main;
-        }
-        
-        if (anchorBoxUI == null || mainCamera == null) return;
-        
-        if (!gameObject.activeInHierarchy || this == null)
-        {
-            if (anchorBoxUI != null)
-            {
-                Destroy(anchorBoxUI.gameObject);
-                anchorBoxUI = null;
-            }
+            if (mainCamera != null)
+                mainCameraTransform = mainCamera.transform;
             return;
         }
         
-        UpdateAnchorBox();
+        // ★ UI 업데이트 주기 체크
+        if (Time.time - lastUIUpdateTime < uiUpdateInterval)
+            return;
+        
+        lastUIUpdateTime = Time.time;
+        UpdateAnchorBoxOptimized();
     }
     
-    private void Update()
+    private void UpdateAnchorBoxOptimized()
     {
-        if (useLateUpdate) return;
+        // ★ 거리 계산 (캐싱)
+        cachedCameraPosition = mainCameraTransform.position;
+        cachedDistance = Vector3.Distance(cachedCameraPosition, transform.position);
         
-        if (mainCamera == null)
-        {
-            mainCamera = Camera.main;
-        }
-        
-        if (anchorBoxUI == null || mainCamera == null) return;
-        
-        if (!gameObject.activeInHierarchy || this == null)
-        {
-            if (anchorBoxUI != null)
-            {
-                Destroy(anchorBoxUI.gameObject);
-                anchorBoxUI = null;
-            }
-            return;
-        }
-        
-        UpdateAnchorBox();
-    }
-    
-    private void UpdateAnchorBox()
-    {
-        float distance = Vector3.Distance(mainCamera.transform.position, transform.position);
-        
-        if (distance < minVisibleDistance || distance > maxVisibleDistance)
+        // ★ 빠른 거리 체크
+        if (cachedDistance < minVisibleDistance || cachedDistance > maxVisibleDistance)
         {
             anchorBoxUI.gameObject.SetActive(false);
             return;
         }
         
-        Vector3 screenPos = mainCamera.WorldToScreenPoint(transform.position);
-        if (screenPos.z < 0)
+        // ★ 카메라 뒤 체크 (빠른 dot product)
+        Vector3 toTarget = transform.position - cachedCameraPosition;
+        if (Vector3.Dot(mainCameraTransform.forward, toTarget) < 0)
         {
             anchorBoxUI.gameObject.SetActive(false);
             return;
         }
         
-        if (!IsInCameraView())
+        // ★ Occlusion 체크 (주기적으로만)
+        if (checkOcclusion && Time.time - lastOcclusionCheckTime > occlusionCheckInterval)
         {
-            anchorBoxUI.gameObject.SetActive(false);
-            return;
+            lastOcclusionResult = IsVisibleFromCameraFast();
+            lastOcclusionCheckTime = Time.time;
         }
         
-        if (!IsVisibleFromCamera())
+        if (checkOcclusion && !lastOcclusionResult)
         {
             anchorBoxUI.gameObject.SetActive(false);
             return;
@@ -568,26 +349,45 @@ public class TargetAnchorBox : MonoBehaviour
         
         anchorBoxUI.gameObject.SetActive(alwaysShow);
         
-        Bounds screenBounds = GetScreenBoundsForCanvasMode();
+        // ★ Bounds 업데이트 (주기적으로만)
+        if (Time.time - lastBoundsUpdateTime > boundsUpdateInterval)
+        {
+            UpdateCachedBounds();
+            PrecomputeBoundsCorners();
+            lastBoundsUpdateTime = Time.time;
+        }
         
-        if (screenBounds.size.magnitude > 10000f || screenBounds.size.magnitude < 1f)
+        // ★ 스크린 Bounds 계산 (주기적으로만)
+        if (Time.time - lastScreenBoundsUpdateTime > screenBoundsUpdateInterval)
+        {
+            cachedScreenBounds = GetScreenBoundsOptimized();
+            lastScreenBoundsUpdateTime = Time.time;
+        }
+        
+        if (cachedScreenBounds.size.magnitude > 10000f || cachedScreenBounds.size.magnitude < 1f)
         {
             anchorBoxUI.gameObject.SetActive(false);
             return;
         }
         
-        Vector2 boxSize = new Vector2(screenBounds.size.x, screenBounds.size.y);
+        // ★ UI 위치/크기 업데이트
+        Vector2 boxSize = new Vector2(cachedScreenBounds.size.x, cachedScreenBounds.size.y);
         anchorBoxUI.sizeDelta = boxSize;
-        anchorBoxUI.anchoredPosition = new Vector2(screenBounds.center.x, screenBounds.center.y);
+        anchorBoxUI.anchoredPosition = new Vector2(cachedScreenBounds.center.x, cachedScreenBounds.center.y);
         
         if (useCornerOnly)
             UpdateCornerLines(boxSize);
         else
             UpdateFullBorderLines(boxSize);
         
-        // ★ 타입별 정보 업데이트
-        UpdateTypeSpecificInfo();
+        // ★ 텍스트 업데이트 (더 느리게)
+        if (Time.time - lastInfoTextUpdateTime > infoTextUpdateInterval)
+        {
+            UpdateTypeSpecificInfoOptimized();
+            lastInfoTextUpdateTime = Time.time;
+        }
         
+        // ★ Alpha 계산
         if (isForceAlphaActive)
         {
             ApplyBorderAlpha(forceAlpha);
@@ -595,28 +395,106 @@ public class TargetAnchorBox : MonoBehaviour
         }
         else if (fadeWithDistance)
         {
-            float borderAlpha = 1f - Mathf.Clamp01((distance - minVisibleDistance) / (maxVisibleDistance - minVisibleDistance));
-            float textAlpha = 1f - Mathf.Clamp01((distance - minVisibleDistance) / (maxTextVisibleDistance - minVisibleDistance));
-            ApplyBorderAlpha(borderAlpha);
-            ApplyTextAlpha(textAlpha);
+            float borderAlpha = 1f - (cachedDistance - minVisibleDistance) / (maxVisibleDistance - minVisibleDistance);
+            float textAlpha = 1f - (cachedDistance - minVisibleDistance) / (maxTextVisibleDistance - minVisibleDistance);
+            ApplyBorderAlpha(Mathf.Clamp01(borderAlpha));
+            ApplyTextAlpha(Mathf.Clamp01(textAlpha));
         }
     }
     
-    // ★ 타입별 정보 업데이트
-    private void UpdateTypeSpecificInfo()
+    // ★ 최적화된 Occlusion 체크 (1개 레이만)
+    private bool IsVisibleFromCameraFast()
+    {
+        Vector3 direction = cachedBounds.center - cachedCameraPosition;
+        float distance = direction.magnitude;
+        
+        if (Physics.Raycast(cachedCameraPosition, direction / distance, out RaycastHit hit, distance, occlusionLayers))
+        {
+            return hit.transform == transform || hit.transform.IsChildOf(transform);
+        }
+        
+        return true;
+    }
+    
+    // ★ 최적화된 스크린 Bounds 계산
+    private Bounds GetScreenBoundsOptimized()
+    {
+        float minX = float.MaxValue;
+        float minY = float.MaxValue;
+        float maxX = float.MinValue;
+        float maxY = float.MinValue;
+
+        // ★ 8개 코너를 한 번에 처리
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 screenPoint = mainCamera.WorldToScreenPoint(boundsCorners[i]);
+            
+            if (screenPoint.z < 0) continue;
+            
+            float canvasX = screenPoint.x - Screen.width * 0.5f;
+            float canvasY = screenPoint.y - Screen.height * 0.5f;
+            
+            if (canvasX < minX) minX = canvasX;
+            if (canvasY < minY) minY = canvasY;
+            if (canvasX > maxX) maxX = canvasX;
+            if (canvasY > maxY) maxY = canvasY;
+        }
+
+        minX -= boxPadding * 0.5f;
+        minY -= boxPadding * 0.5f;
+        maxX += boxPadding * 0.5f;
+        maxY += boxPadding * 0.5f;
+
+        Vector2 center = new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
+        Vector2 size = new Vector2(maxX - minX, maxY - minY);
+
+        return new Bounds(center, size);
+    }
+    
+    private void UpdateCachedBounds()
+    {
+        if (useManualCenter)
+        {
+            cachedBounds = new Bounds(transform.position + manualCenterOffset, manualBoundsSize);
+        }
+        else if (targetCollider != null)
+        {
+            cachedBounds = targetCollider.bounds;
+        }
+        else if (targetRenderer != null)
+        {
+            cachedBounds = targetRenderer.bounds;
+        }
+        else
+        {
+            cachedBounds = new Bounds(transform.position, Vector3.one);
+        }
+        
+        // ★ 간단한 유효성 검사
+        Vector3 size = cachedBounds.size;
+        if (size.x < minBoundsSize || size.y < minBoundsSize || size.z < minBoundsSize)
+        {
+            cachedBounds = new Bounds(cachedBounds.center, Vector3.Max(size, Vector3.one * minBoundsSize));
+        }
+    }
+    
+    // ★ 문자열 최적화 (StringBuilder 재사용)
+    private void UpdateTypeSpecificInfoOptimized()
     {
         if (infoText == null) return;
+        
+        stringBuilder.Clear();
         
         switch (targetType)
         {
             case TargetType.Enemy:
-                UpdateEnemyInfo();
+                UpdateEnemyInfoOptimized();
                 break;
             case TargetType.Box:
-                UpdateBoxInfo();
+                UpdateBoxInfoOptimized();
                 break;
             case TargetType.EnergyCore:
-                UpdateEnergyCoreInfo();
+                UpdateEnergyCoreInfoOptimized();
                 break;
             default:
                 infoText.text = "";
@@ -624,185 +502,110 @@ public class TargetAnchorBox : MonoBehaviour
         }
     }
     
-    private void UpdateEnemyInfo()
+    private void UpdateEnemyInfoOptimized()
     {
         if (enemyAI != null)
         {
-            float currentHealth = enemyAI.GetHealth();
-            float enemyDamage = enemyAI.GetDamage();
-    
-            string hpColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-            infoText.text = $"<color=#{hpColorHex}>HP: {currentHealth:F1}</color>\n<color=#FF8800>Damage: {enemyDamage:F1}</color>";
+            float hp = enemyAI.GetHealth();
+            float dmg = enemyAI.GetDamage();
+            
+            stringBuilder.Append("<color=#");
+            stringBuilder.Append(ColorUtility.ToHtmlStringRGB(boxColor));
+            stringBuilder.Append(">HP: ");
+            stringBuilder.Append(hp.ToString("F1")); // ★ F1 → F0
+            stringBuilder.Append("</color>\n<color=#FF8800>Damage: ");
+            stringBuilder.Append(dmg.ToString("F1"));
+            stringBuilder.Append("</color>");
         }
         else
         {
-            string hpColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-            infoText.text = $"<color=#{hpColorHex}>HP: ???</color>\n<color=#FF8800>Damage: ???</color>";
+            stringBuilder.Append("<color=#");
+            stringBuilder.Append(ColorUtility.ToHtmlStringRGB(boxColor));
+            stringBuilder.Append(">HP: ???</color>");
         }
+        
+        infoText.text = stringBuilder.ToString();
     }
-
     
-    private void UpdateBoxInfo()
+    private void UpdateBoxInfoOptimized()
     {
         var boxAnchorBox = GetComponent<BoxAnchorBox>();
     
         if (boxAnchorBox != null)
         {
-            int requiredEnergy = boxAnchorBox.GetCurrentCost();
+            int required = boxAnchorBox.GetCurrentCost();
             int playerEnergy = PlayerStats.Instance != null ? PlayerStats.Instance.GetEnergy() : 0;
-        
-            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-        
-            if (playerEnergy >= requiredEnergy)
+            
+            stringBuilder.Append("<color=#");
+            stringBuilder.Append(ColorUtility.ToHtmlStringRGB(boxColor));
+            stringBuilder.Append(">");
+            
+            if (playerEnergy >= required)
             {
-                infoText.text = $"<color=#{boxColorHex}>[F] Open Box\nEnergy: {playerEnergy}/{requiredEnergy}</color>";
+                stringBuilder.Append("[F] Open Box\nEnergy: ");
+                stringBuilder.Append(playerEnergy);
+                stringBuilder.Append("/");
+                stringBuilder.Append(required);
+                stringBuilder.Append("</color>");
             }
             else
             {
-                infoText.text = $"<color=#{boxColorHex}>Locked Box</color>\n<color=#FF0000>Energy: {playerEnergy}/{requiredEnergy}</color>";
+                stringBuilder.Append("Locked Box</color>\n<color=#FF0000>Energy: ");
+                stringBuilder.Append(playerEnergy);
+                stringBuilder.Append("/");
+                stringBuilder.Append(required);
+                stringBuilder.Append("</color>");
             }
         }
-        else
-        {
-            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-            infoText.text = $"<color=#{boxColorHex}>[F] Open Box\nEnergy: ?/?</color>";
-        }
+        
+        infoText.text = stringBuilder.ToString();
     }
     
-    private void UpdateEnergyCoreInfo()
+    private void UpdateEnergyCoreInfoOptimized()
     {
         if (ForceFieldManager.Instance != null)
         {
-            int currentLevel = ForceFieldManager.Instance.GetCurrentLevel();
+            int level = ForceFieldManager.Instance.GetCurrentLevel();
             int maxLevel = ForceFieldManager.Instance.GetMaxLevel();
-        
-            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-        
-            if (currentLevel >= maxLevel)
+            
+            stringBuilder.Append("Level ");
+            stringBuilder.Append(level);
+            
+            if (level >= maxLevel)
             {
-                infoText.text = $"Level {currentLevel}\n<color=#00FF00>MAX LEVEL</color></color>";
+                stringBuilder.Append("\n<color=#00FF00>MAX LEVEL</color>");
             }
             else
             {
-                int requiredEnergy = ForceFieldManager.Instance.GetRequiredEnergyForNextLevel();
+                int required = ForceFieldManager.Instance.GetRequiredEnergyForNextLevel();
                 int playerEnergy = PlayerStats.Instance != null ? PlayerStats.Instance.GetEnergy() : 0;
-            
-                if (playerEnergy >= requiredEnergy)
+                
+                if (playerEnergy >= required)
                 {
-                    infoText.text = $"Level {currentLevel}</color>\n<color=#00FF00>[F] Upgrade: {playerEnergy}/{requiredEnergy}</color> Energy";
+                    stringBuilder.Append("\n<color=#00FF00>[F] Upgrade: ");
+                    stringBuilder.Append(playerEnergy);
+                    stringBuilder.Append("/");
+                    stringBuilder.Append(required);
+                    stringBuilder.Append("</color> Energy");
                 }
                 else
                 {
-                    infoText.text = $"Level {currentLevel}</color>\n<color=#FF0000>Require Energy: {playerEnergy}/{requiredEnergy}</color>";
+                    stringBuilder.Append("\n<color=#FF0000>Require: ");
+                    stringBuilder.Append(playerEnergy);
+                    stringBuilder.Append("/");
+                    stringBuilder.Append(required);
+                    stringBuilder.Append("</color>");
                 }
             }
         }
-        else
-        {
-            string boxColorHex = ColorUtility.ToHtmlStringRGB(boxColor);
-            infoText.text = $"<color=#{boxColorHex}>Energy Core\nInitializing...</color>";
-        }
-    }
-    
-    // ★ 레벨별 필요 에너지 계산 (ForceFieldManager와 연동)
-    private int GetRequiredEnergyForNextLevel(int currentLevel)
-    {
-        // 레벨별 필요 에너지 (예시)
-        // Level 1→2: 100, Level 2→3: 200, Level 3→4: 300, ...
-        return currentLevel * 100;
+        
+        infoText.text = stringBuilder.ToString();
     }
     
     public void CacheBoundsForDeath()
     {
-        lastValidBounds = GetBoundsFromSource(); // 현재 Bounds 저장
-        isDying = true; // 죽는 중 플래그 설정
-        Debug.Log($"{gameObject.name}: Bounds cached for death - {lastValidBounds.size}");
-    }
-    
-    private Bounds GetScreenBoundsForCanvasMode()
-    {
-        Bounds worldBounds = GetCurrentBounds();
-
-        Vector3[] corners = new Vector3[8];
-        corners[0] = worldBounds.min;
-        corners[1] = new Vector3(worldBounds.min.x, worldBounds.min.y, worldBounds.max.z);
-        corners[2] = new Vector3(worldBounds.min.x, worldBounds.max.y, worldBounds.min.z);
-        corners[3] = new Vector3(worldBounds.max.x, worldBounds.min.y, worldBounds.min.z);
-        corners[4] = new Vector3(worldBounds.min.x, worldBounds.max.y, worldBounds.max.z);
-        corners[5] = new Vector3(worldBounds.max.x, worldBounds.min.y, worldBounds.max.z);
-        corners[6] = new Vector3(worldBounds.max.x, worldBounds.max.y, worldBounds.min.z);
-        corners[7] = worldBounds.max;
-
-        Vector2 min = new Vector2(float.MaxValue, float.MaxValue);
-        Vector2 max = new Vector2(float.MinValue, float.MinValue);
-
-        foreach (Vector3 corner in corners)
-        {
-            Vector2 canvasPoint = WorldToCanvasPoint(corner);
-    
-            if (canvasPoint.x < min.x) min.x = canvasPoint.x;
-            if (canvasPoint.y < min.y) min.y = canvasPoint.y;
-            if (canvasPoint.x > max.x) max.x = canvasPoint.x;
-            if (canvasPoint.y > max.y) max.y = canvasPoint.y;
-        }
-
-        min.x -= boxPadding * 0.5f;
-        min.y -= boxPadding * 0.5f;
-        max.x += boxPadding * 0.5f;
-        max.y += boxPadding * 0.5f;
-
-        Vector2 center = (min + max) * 0.5f;
-        Vector2 size = max - min;
-
-        return new Bounds(center, size);
-    }
-    
-    private Vector2 WorldToCanvasPoint(Vector3 worldPosition)
-    {
-        if (mainCamera == null)
-        {
-            mainCamera = Camera.main;
-            if (mainCamera == null)
-            {
-                Debug.LogError("Main camera not found!");
-                return Vector2.zero;
-            }
-        }
-        
-        if (parentCanvas == null || parentCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
-        {
-            Vector3 screenPoint = mainCamera.WorldToScreenPoint(worldPosition);
-            return new Vector2(
-                screenPoint.x - Screen.width * 0.5f,
-                screenPoint.y - Screen.height * 0.5f
-            );
-        }
-        
-        RectTransform canvasRect = parentCanvas.GetComponent<RectTransform>();
-        Vector3 screenPos = mainCamera.WorldToScreenPoint(worldPosition);
-        
-        if (screenPos.z < 0)
-        {
-            return Vector2.zero;
-        }
-        
-        Vector2 canvasPoint;
-        bool success = RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            canvasRect, 
-            screenPos, 
-            parentCanvas.worldCamera,
-            out canvasPoint
-        );
-        
-        if (!success)
-        {
-            return new Vector2(
-                screenPos.x - Screen.width * 0.5f,
-                screenPos.y - Screen.height * 0.5f
-            );
-        }
-        
-        return canvasPoint;
+        lastValidBounds = cachedBounds;
+        isDying = true;
     }
     
     public void SetUIAlpha(float alpha)
@@ -813,7 +616,7 @@ public class TargetAnchorBox : MonoBehaviour
         if (alpha < 1f && !isDying)
         {
             isDying = true;
-            lastValidBounds = GetCurrentBounds();
+            lastValidBounds = cachedBounds;
         }
     }
     
@@ -827,9 +630,7 @@ public class TargetAnchorBox : MonoBehaviour
     public void TransitionToColor(Color targetColor, float speed)
     {
         if (colorTransitionCoroutine != null)
-        {
             StopCoroutine(colorTransitionCoroutine);
-        }
         
         colorTransitionCoroutine = StartCoroutine(ColorTransitionCoroutine(targetColor, speed));
     }
@@ -837,9 +638,7 @@ public class TargetAnchorBox : MonoBehaviour
     public void RestoreOriginalColor(float speed)
     {
         if (colorTransitionCoroutine != null)
-        {
             StopCoroutine(colorTransitionCoroutine);
-        }
         
         colorTransitionCoroutine = StartCoroutine(ColorTransitionCoroutine(originalBoxColor, speed));
     }
@@ -853,17 +652,13 @@ public class TargetAnchorBox : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.unscaledDeltaTime;
-            float t = elapsed / duration;
-            
-            boxColor = Color.Lerp(currentColor, targetColor, t);
+            boxColor = Color.Lerp(currentColor, targetColor, elapsed / duration);
             UpdateUIColors();
-            
             yield return null;
         }
         
         boxColor = targetColor;
         UpdateUIColors();
-        
         colorTransitionCoroutine = null;
     }
     
@@ -875,25 +670,25 @@ public class TargetAnchorBox : MonoBehaviour
             {
                 if (line != null)
                 {
-                    Color lineColor = boxColor;
-                    lineColor.a = line.color.a;
-                    line.color = lineColor;
+                    Color c = boxColor;
+                    c.a = line.color.a;
+                    line.color = c;
                 }
             }
         }
         
         if (nameText != null)
         {
-            Color textColor = boxColor;
-            textColor.a = nameText.color.a;
-            nameText.color = textColor;
+            Color c = boxColor;
+            c.a = nameText.color.a;
+            nameText.color = c;
         }
         
         if (infoText != null)
         {
-            Color textColor = boxColor;
-            textColor.a = infoText.color.a;
-            infoText.color = textColor;
+            Color c = boxColor;
+            c.a = infoText.color.a;
+            infoText.color = c;
         }
     }
     
@@ -927,13 +722,10 @@ public class TargetAnchorBox : MonoBehaviour
         
         SetCornerLine(0, new Vector2(-halfWidth, halfHeight), cornerLength, lineThickness);
         SetCornerLine(1, new Vector2(-halfWidth, halfHeight), lineThickness, cornerLength);
-        
         SetCornerLine(2, new Vector2(halfWidth - cornerLength, halfHeight), cornerLength, lineThickness);
         SetCornerLine(3, new Vector2(halfWidth, halfHeight), lineThickness, cornerLength);
-        
         SetCornerLine(4, new Vector2(-halfWidth, -halfHeight), cornerLength, lineThickness);
         SetCornerLine(5, new Vector2(-halfWidth, -halfHeight + cornerLength), lineThickness, cornerLength);
-        
         SetCornerLine(6, new Vector2(halfWidth - cornerLength, -halfHeight), cornerLength, lineThickness);
         SetCornerLine(7, new Vector2(halfWidth, -halfHeight + cornerLength), lineThickness, cornerLength);
     }
@@ -963,16 +755,16 @@ public class TargetAnchorBox : MonoBehaviour
     {
         if (nameText != null)
         {
-            Color textColor = nameText.color;
-            textColor.a = alpha;
-            nameText.color = textColor;
+            Color c = nameText.color;
+            c.a = alpha;
+            nameText.color = c;
         }
         
         if (infoText != null)
         {
-            Color textColor = infoText.color;
-            textColor.a = alpha;
-            infoText.color = textColor;
+            Color c = infoText.color;
+            c.a = alpha;
+            infoText.color = c;
         }
     }
     
@@ -992,11 +784,5 @@ public class TargetAnchorBox : MonoBehaviour
     public void SetVisibility(bool visible)
     {
         alwaysShow = visible;
-    }
-    
-    public void SetBoundsSource(BoundsSourceType sourceType)
-    {
-        boundsSource = sourceType;
-        UpdateCachedBounds();
     }
 }

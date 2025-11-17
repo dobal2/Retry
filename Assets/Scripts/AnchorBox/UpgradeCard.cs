@@ -101,7 +101,7 @@ public class UpgradeCard : MonoBehaviour
                 break;
                 
             case UpgradeType.ProjectileSize:
-                upgradeValue = Random.Range(minStatBonus, maxStatBonus);
+                upgradeValue = Random.Range(minStatBonus*1.3f, maxStatBonus*1.3f);
                 upgradeName = "Projectile Size";
                 upgradeDescription = $"Projectile Size +{upgradeValue * 100:F0}%";
                 break;

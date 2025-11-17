@@ -20,14 +20,22 @@ public class Energy : MonoBehaviour
     [Header("Collection")]
     [SerializeField] private string playerTag = "Player";
     
+    [Header("Entity Type")]
+    [SerializeField] private EntityType entityType = EntityType.Enemy; // ★ 적과 같이 멈춤
+    
     private Rigidbody rb;
     private bool isHovering = false;
     private bool hasLaunched = false;
     private bool hasLanded = false;
+    private bool isFrozen = false; // ★ 추가
     
     private Vector3 fixedPosition;
     private float groundY;
     private float bobbingTime = 0f;
+    
+    // ★ 시간 정지용 캐싱
+    private Vector3 frozenVelocity;
+    private Vector3 frozenAngularVelocity;
     
     void Awake()
     {
@@ -60,6 +68,8 @@ public class Energy : MonoBehaviour
     
     void FixedUpdate()
     {
+        if (isFrozen) return; // ★ 멈췄으면 물리 업데이트 안함
+        
         if (!isHovering && hasLaunched && !hasLanded)
         {
             CheckGroundContact();
@@ -68,10 +78,60 @@ public class Energy : MonoBehaviour
     
     void Update()
     {
+        CheckTimeStopState(); // ★ 시간 정지 체크
+        
+        if (isFrozen) return; // ★ 멈췄으면 업데이트 안함
+        
         if (isHovering)
         {
             UpdateHoverAnimation();
             transform.Rotate(Vector3.up, hoverRotationSpeed * Time.deltaTime, Space.World);
+        }
+    }
+    
+    // ★ 시간 정지 상태 체크
+    private void CheckTimeStopState()
+    {
+        if (TimeStopManager.Instance == null) return;
+        
+        bool shouldBeFrozen = TimeStopManager.Instance.ShouldBeFrozen(entityType);
+
+        if (shouldBeFrozen && !isFrozen)
+        {
+            FreezeEntity();
+        }
+        else if (!shouldBeFrozen && isFrozen)
+        {
+            UnfreezeEntity();
+        }
+    }
+    
+    // ★ 엔티티 정지
+    private void FreezeEntity()
+    {
+        isFrozen = true;
+
+        if (rb != null && !rb.isKinematic)
+        {
+            frozenVelocity = rb.linearVelocity;
+            frozenAngularVelocity = rb.angularVelocity;
+            
+            rb.linearVelocity = Vector3.zero;
+            rb.angularVelocity = Vector3.zero;
+            rb.isKinematic = true;
+        }
+    }
+    
+    // ★ 엔티티 정지 해제
+    private void UnfreezeEntity()
+    {
+        isFrozen = false;
+        
+        if (rb != null && !isHovering) // 호버링 중이면 이미 kinematic
+        {
+            rb.isKinematic = false;
+            rb.linearVelocity = frozenVelocity;
+            rb.angularVelocity = frozenAngularVelocity;
         }
     }
     

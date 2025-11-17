@@ -37,6 +37,7 @@ public class GameManager : MonoBehaviour
     
     void Awake()
     {
+        Application.targetFrameRate = -1;
         if (Instance == null)
         {
             Instance = this;
@@ -490,6 +491,11 @@ public class GameManager : MonoBehaviour
         
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(centerPos, 1f);
+    }
+
+    public void Retry()
+    {
+        Time.timeScale = 1;
     }
     
     void DrawCircle(Vector3 center, float radius, int segments)

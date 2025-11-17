@@ -34,6 +34,12 @@ namespace InfimaGames.LowPolyShooterPack
             // 카드 선택 중이면 카메라 회전 안함
             if (UpgradeCardManager.Instance != null && UpgradeCardManager.Instance.IsSelecting())
                 return;
+            if (PlayerStats.Instance != null && !PlayerStats.Instance.IsAlive())
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                return;
+            }
             
             Vector2 input = playerCharacter.IsCursorLocked() ? playerCharacter.GetInputLook() : default;
             input *= sensitivity;

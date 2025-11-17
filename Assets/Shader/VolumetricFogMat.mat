@@ -34,7 +34,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _ColorBlend: 0
-    - _DensityMultiplier: 0
+    - _DensityMultiplier: 0.15213682
     - _DensityThreshold: 0.881
     - _LightScattering: 0
     - _MaxDistance: 100

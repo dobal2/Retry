@@ -1182,7 +1182,7 @@ MonoBehaviour:
   moveSpeedMultiplier: 1
   jumpForceMultiplier: 1
   maxJumpCount: 1
-  currentEnergy: 0
+  currentEnergy: 2147482258
   takeDamageShake: {fileID: 11400000, guid: aeadd0db02e7c52458509356173ad3e6, type: 2}
   shaker: {fileID: 6369244619739246064}
   damageEffectDuration: 0.5
@@ -1216,6 +1216,7 @@ MonoBehaviour:
   maxBlurOffset: 0.005
   originalIntensity: 0.4
   maxIntensity: 1
+  healInterval: 2
   showDebugInfo: 0
 --- !u!114 &-6857593619088398915
 MonoBehaviour:
@@ -1229,7 +1230,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e0879ae8b610d943adc29bd54ddb224, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dashForce: 100
+  dashDistance: 10
   dashDuration: 0.2
   cooldownTimer: 1
   distortionMinValue: -0.8

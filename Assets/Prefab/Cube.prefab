@@ -140,9 +140,7 @@ MonoBehaviour:
   displayName: Box
   alwaysShow: 1
   boundsSource: 1
-  cacheBounds: 1
   boundsUpdateInterval: 0.1
-  autoFixBounds: 1
   minBoundsSize: 0.5
   maxBoundsSize: 50
   useManualCenter: 0
@@ -155,18 +153,16 @@ MonoBehaviour:
   cornerLength: 20
   showName: 1
   fadeWithDistance: 1
-  maxTextVisibleDistance: 50
-  maxVisibleDistance: 100
-  minVisibleDistance: 2
+  maxTextVisibleDistance: 20
+  maxVisibleDistance: 20
+  minVisibleDistance: 1
   checkOcclusion: 1
   occlusionLayers:
     serializedVersion: 2
     m_Bits: 227639
-  raycastCount: 3
-  showOnlyInCameraView: 0
-  cameraViewAngle: 60
-  useLateUpdate: 1
-  showDebugGizmos: 0
+  occlusionCheckInterval: 0.3
+  uiUpdateInterval: 0.033
+  infoTextUpdateInterval: 0.1
   interactionKey: 102
   requireVisible: 1
   baseOpenCost: 6
