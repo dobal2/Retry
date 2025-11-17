@@ -353,6 +353,10 @@ MonoBehaviour:
   bobbingAmount: 0.3
   hoverRotationSpeed: 100
   playerTag: Player
+  magnetRange: 5
+  magnetSpeed: 10
+  magnetAcceleration: 15
+  entityType: 1
 --- !u!4 &4639411785868099425 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -970669790887589221, guid: a59536f9115be2d4ca0b208edd03c98d,

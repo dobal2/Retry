@@ -28,6 +28,10 @@ public class UpgradeCardManager : MonoBehaviour
     [SerializeField] private Canvas targetCanvas;
     [SerializeField] private float canvasPlaneDistance = 0.3f;
     
+    [Header("Audio Effects")]
+    [SerializeField] private AudioLowPassFilter bgmLowPassFilter;
+    [SerializeField] private float lowPassCutoffFrequency = 800f;
+    
     [Header("Spawn Settings")]
     [SerializeField] private float cardSpacing = 400f;
     [SerializeField] private float cardYOffset = 0f;
@@ -121,6 +125,13 @@ public class UpgradeCardManager : MonoBehaviour
             return;
         }
         
+        if (PlayerStats.Instance != null)
+        {
+            bgmLowPassFilter = PlayerStats.Instance.GetComponentInChildren<Camera>().gameObject
+                .GetComponent<AudioLowPassFilter>();
+            bgmLowPassFilter.enabled = true;
+        }
+        
         ClearActiveCards();
         
         isSelecting = true;
@@ -205,6 +216,13 @@ public class UpgradeCardManager : MonoBehaviour
             {
                 Destroy(card.gameObject);
             }
+        }
+
+        if (PlayerStats.Instance != null)
+        {
+            bgmLowPassFilter = PlayerStats.Instance.GetComponentInChildren<Camera>().gameObject
+                .GetComponent<AudioLowPassFilter>();
+            bgmLowPassFilter.enabled = false;
         }
         
         activeCards.Clear();

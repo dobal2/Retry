@@ -6,7 +6,7 @@ public class MenuUiFunction : MonoBehaviour
     public void StartGame()
     {
         SceneManager.LoadScene("Main");
-
+        SoundManager.Instance.PlayBgm(SoundManager.Bgm.MainBGM);
         if (GameManager.Instance != null)
         {
             GameManager.Instance.Retry();

@@ -1119,8 +1119,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 97575d73789d6d54dbb8f3ef5a366351, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  coolTime: 1
-  timeStopDuration: 5
+  coolTime: 35
+  timeStopDuration: 7
   normalSaturation: 30
   timeStopSaturation: -100
   saturationTransitionSpeed: 5
@@ -1225,13 +1225,13 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1066618479810269397}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2e0879ae8b610d943adc29bd54ddb224, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  dashDistance: 10
-  dashDuration: 0.2
+  timeScaleMultiplier: 3
+  skipDuration: 0.5
   cooldownTimer: 1
   distortionMinValue: -0.8
   distortionDownDuration: 0.1
@@ -1830,6 +1830,7 @@ GameObject:
   - component: {fileID: 2590553847024774793}
   - component: {fileID: 67599806685516158}
   - component: {fileID: 6369244619739246064}
+  - component: {fileID: 696213352737051095}
   m_Layer: 9
   m_Name: MainCamera
   m_TagString: MainCamera
@@ -1972,6 +1973,31 @@ MonoBehaviour:
   _limitMagnitude: 0
   _positionalMagnitudeLimit: 10
   _rotationalMagnitudeLimit: 3
+--- !u!169 &696213352737051095
+AudioLowPassFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2590553847024774794}
+  m_Enabled: 1
+  serializedVersion: 3
+  m_LowpassResonanceQ: 1.3
+  lowpassLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0.22727273
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &2631599632221871911
 GameObject:
   m_ObjectHideFlags: 0

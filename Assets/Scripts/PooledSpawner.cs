@@ -1,6 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class PooledSpawner : MonoBehaviour
 {
@@ -21,6 +22,7 @@ public class PooledSpawner : MonoBehaviour
     
     [Header("UI")]
     [SerializeField] private TextMeshProUGUI difficultyText;
+    [SerializeField] private TextMeshProUGUI timerText;
     
     [Header("스폰 범위")]
     [SerializeField] private float minDistance = 10f;
@@ -44,6 +46,9 @@ public class PooledSpawner : MonoBehaviour
     private float currentHealthMultiplier = 1f;
     private float currentDamageMultiplier = 1f;
     private float difficultyTimer = 0f;
+    private float totalGameTime = 0f;
+    
+    private const int CLEAR_DIFFICULTY_LEVEL = 17;
     
     void Start()
     {
@@ -60,6 +65,7 @@ public class PooledSpawner : MonoBehaviour
         }
         
         UpdateDifficultyUI();
+        UpdateTimerUI();
     }
     
     void Update()
@@ -67,6 +73,7 @@ public class PooledSpawner : MonoBehaviour
         if (!isSpawning) return;
         
         difficultyTimer += Time.deltaTime;
+        totalGameTime += Time.deltaTime;
         
         if (difficultyTimer >= difficultyIncreaseInterval)
         {
@@ -75,6 +82,7 @@ public class PooledSpawner : MonoBehaviour
         }
         
         UpdateDifficultyUI();
+        UpdateTimerUI();
     }
     
     private void IncreaseDifficulty()
@@ -100,24 +108,42 @@ public class PooledSpawner : MonoBehaviour
     {
         if (difficultyText == null) return;
         
-        string difficultyName;
+        string difficultyName = "Difficulty: Easy";
         
         if (currentDifficultyLevel == 0)
             difficultyName = "Difficulty: Easy";
-        else if (currentDifficultyLevel <= 2)
-            difficultyName = "Difficulty: Normal";
-        else if (currentDifficultyLevel <= 4)
-            difficultyName = "Difficulty: Medium";
         else if (currentDifficultyLevel <= 6)
-            difficultyName = "Difficulty: Hard";
-        else if (currentDifficultyLevel <= 9)
-            difficultyName = "Difficulty: Very Hard";
+            difficultyName = "Difficulty: Normal";
         else if (currentDifficultyLevel <= 12)
+            difficultyName = "Difficulty: Hard";
+        else if (currentDifficultyLevel <= 18)
             difficultyName = "Difficulty: Insane";
-        else
+        else if (currentDifficultyLevel <= 24)
             difficultyName = "Difficulty: Gay";
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+            SoundManager.Instance.PlayBgm(SoundManager.Bgm.ClearBGM);
+            SceneManager.LoadScene("Clear");
+        }
         
         difficultyText.text = difficultyName;
+    }
+    
+    private void UpdateTimerUI()
+    {
+        if (timerText == null) return;
+        
+        int remainingLevels = CLEAR_DIFFICULTY_LEVEL - currentDifficultyLevel;
+        float remainingTime = (remainingLevels * difficultyIncreaseInterval) - difficultyTimer;
+        
+        if (remainingTime < 0) remainingTime = 0;
+        
+        int minutes = Mathf.FloorToInt(remainingTime / 60f);
+        int seconds = Mathf.FloorToInt(remainingTime % 60f);
+        
+        timerText.text = $"Clear in: {minutes:00}:{seconds:00}";
     }
     
     public void SetTarget(Transform newTarget)
@@ -133,6 +159,7 @@ public class PooledSpawner : MonoBehaviour
         
         isSpawning = true;
         difficultyTimer = 0f;
+        totalGameTime = 0f;
         StartCoroutine(SpawnRoutine());
     }
     
@@ -236,6 +263,7 @@ public class PooledSpawner : MonoBehaviour
     public int GetCurrentMaxEnemies() => currentMaxEnemies;
     public float GetHealthMultiplier() => currentHealthMultiplier;
     public float GetDamageMultiplier() => currentDamageMultiplier;
+    public float GetTotalGameTime() => totalGameTime;
     
     public void ResetDifficulty()
     {
@@ -245,6 +273,7 @@ public class PooledSpawner : MonoBehaviour
         currentHealthMultiplier = 1f;
         currentDamageMultiplier = 1f;
         difficultyTimer = 0f;
+        totalGameTime = 0f;
     }
     
     public void ClearAllEnemies()

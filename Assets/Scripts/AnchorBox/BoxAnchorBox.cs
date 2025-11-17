@@ -24,7 +24,7 @@ public class BoxAnchorBox : InteractableAnchorBox
         UpgradeCardManager.Instance.SpawnCards(cardsToSpawn);
         
         Debug.Log($"Box opened! Cost: {cost}, Next cost: {CurrentCost}");
-        
+        SoundManager.Instance.PlaySfx(SoundManager.Sfx.OpenChest);
         Destroy(gameObject);
     }
     

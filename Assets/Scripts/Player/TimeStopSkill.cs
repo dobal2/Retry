@@ -72,7 +72,7 @@ public class TimeStopSkill : MonoBehaviour
 
     private void Start()
     {
-        // Post Processing 이펙트들 가져오기
+        curTime = coolTime;
         if (volume == null)
             volume = GameObject.FindWithTag("Volume").GetComponent<Volume>();
         
@@ -136,10 +136,9 @@ public class TimeStopSkill : MonoBehaviour
 
     void Update()
     {
-        // 쿨타임 업데이트 (unscaledDeltaTime 사용)
         if (curTime < coolTime)
         {
-            curTime += Time.unscaledDeltaTime;
+            curTime += Time.deltaTime;
         }
 
         // E키로 스킬 발동
@@ -151,21 +150,17 @@ public class TimeStopSkill : MonoBehaviour
 
     private void TryActivateSkill()
     {
-        // 쿨타임 체크
         if (curTime < coolTime)
         {
-            Debug.Log($"[Skill] Cooldown: {coolTime - curTime:F1}s remaining");
             return;
         }
-
-        // 이미 시간정지 중이면 무시
+        
         if (TimeStopManager.Instance.IsTimeStopped)
         {
             Debug.Log("[Skill] Time stop already active!");
             return;
         }
-
-        // 스킬 발동
+        
         ActivateTimeStop();
     }
 

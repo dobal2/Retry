@@ -6,13 +6,11 @@ using System.Collections;
 
 public class TimeSkip : MonoBehaviour
 {
-    private Rigidbody rigid;
     private Movement movement;
-    private Camera mainCamera;
     
-    [Header("Dash Settings")]
-    [SerializeField] private float dashDistance = 10f;
-    [SerializeField] private float dashDuration = 0.2f;
+    [Header("Time Skip Settings")]
+    [SerializeField] private float timeScaleMultiplier = 3f;
+    [SerializeField] private float skipDuration = 0.5f;
     [SerializeField] private float cooldownTimer = 1f;
     private float curTimer;
     
@@ -32,12 +30,11 @@ public class TimeSkip : MonoBehaviour
     private ColorAdjustments _colorAdjustments;
     
     private Coroutine saturationCoroutine;
+    private bool isSkipping = false;
     
     void Start()
     {
-        rigid = GetComponent<Rigidbody>();
         movement = GetComponent<Movement>();
-        mainCamera = Camera.main;
         
         if (volume == null)
         {
@@ -57,64 +54,41 @@ public class TimeSkip : MonoBehaviour
 
     void Update()
     {
-        curTimer += Time.deltaTime;
-        if (cooldownTimer <= curTimer)
+        curTimer += Time.unscaledDeltaTime;
+        if (cooldownTimer <= curTimer && !isSkipping)
         {
             if (Input.GetKeyDown(KeyCode.Q))
             {
-                StartCoroutine(DashCoroutine());
+                StartCoroutine(TimeSkipCoroutine());
                 curTimer = 0;
             }
         }
     }
     
-    private IEnumerator DashCoroutine()
+    private IEnumerator TimeSkipCoroutine()
     {
-        movement.SetDashing(true);
+        isSkipping = true;
         
         StartCoroutine(LensDistortionSequence());
         StartCoroutine(SaturationSequence());
         
-        Vector3 dashDirection = mainCamera.transform.forward;
-        dashDirection.Normalize();
+        float originalTimeScale = Time.timeScale;
+        float originalFixedDeltaTime = Time.fixedDeltaTime;
         
-        // 레이캐스트로 장애물 체크
-        float actualDistance = dashDistance;
-        if (Physics.Raycast(transform.position, dashDirection, out RaycastHit hit, dashDistance))
-        {
-            actualDistance = hit.distance - 0.5f;
-            if (actualDistance < 0) actualDistance = 0;
-        }
+        Time.timeScale = timeScaleMultiplier;
+        Time.fixedDeltaTime = 0.02f * timeScaleMultiplier;
         
-        // 물리 상태 저장
-        Vector3 originalVelocity = rigid.linearVelocity;
-        bool originalGravity = rigid.useGravity;
-        
-        rigid.linearVelocity = Vector3.zero;
-        rigid.useGravity = false;
-        rigid.isKinematic = true;
-        
-        // 부드럽게 이동
-        Vector3 startPos = transform.position;
-        Vector3 endPos = startPos + dashDirection * actualDistance;
         float elapsed = 0f;
-        
-        while (elapsed < dashDuration)
+        while (elapsed < skipDuration)
         {
-            elapsed += Time.deltaTime;
-            float t = elapsed / dashDuration;
-            transform.position = Vector3.Lerp(startPos, endPos, t);
+            elapsed += Time.unscaledDeltaTime;
             yield return null;
         }
         
-        transform.position = endPos;
+        Time.timeScale = originalTimeScale;
+        Time.fixedDeltaTime = originalFixedDeltaTime;
         
-        // 물리 복구
-        rigid.isKinematic = false;
-        rigid.useGravity = originalGravity;
-        rigid.linearVelocity = Vector3.zero;
-        
-        movement.SetDashing(false);
+        isSkipping = false;
     }
     
     private IEnumerator LensDistortionSequence()
@@ -148,7 +122,6 @@ public class TimeSkip : MonoBehaviour
     {
         if (_colorAdjustments == null) yield break;
     
-        // 시간이 멈춰있으면 흑백 조정 안함
         if (TimeStopManager.Instance != null && TimeStopManager.Instance.IsTimeStopped)
         {
             yield break;

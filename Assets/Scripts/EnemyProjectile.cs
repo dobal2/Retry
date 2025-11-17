@@ -259,6 +259,7 @@ public class EnemyProjectile : MonoBehaviour
         // 데미지 처리 추가
         ApplyDamage(collision.gameObject);
         
+        
         // 충돌 후 처리
         rb.constraints = RigidbodyConstraints.FreezeAll;
         if (lightSourse != null)

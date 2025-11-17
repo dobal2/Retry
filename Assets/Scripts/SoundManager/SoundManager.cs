@@ -6,6 +6,8 @@ using UnityEngine.Audio;
 public class SoundManager : MonoBehaviour
 {
     public static SoundManager Instance { get; private set; }
+    
+    
 
     void Awake()
     {
@@ -40,8 +42,8 @@ public class SoundManager : MonoBehaviour
     [Header("#Clock Sound")]
     private AudioSource clockSoundPlayer;
     
-    public enum Bgm{}
-    public enum Sfx{TimeStop,ClockSound}
+    public enum Bgm{MenuBgm,MainBGM,ClearBGM}
+    public enum Sfx{TimeStop,ClockSound,EnergyCollect,ProjectileHit,OpenChest}
 
     void Init()
     {
@@ -70,6 +72,8 @@ public class SoundManager : MonoBehaviour
         clockSoundPlayer = clockObject.AddComponent<AudioSource>();
         clockSoundPlayer.playOnAwake = false;
         clockSoundPlayer.volume = sfxVolume;
+        
+        PlayBgm(Bgm.MenuBgm);
     }
     
 

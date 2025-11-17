@@ -359,7 +359,7 @@ public class EnemyAI : MonoBehaviour, IDamageable, IPoolable
         
         OnHit();
 
-        if (currentHealth <= 0)
+        if (currentHealth < 0.1f)
         {
             Die();
         }
