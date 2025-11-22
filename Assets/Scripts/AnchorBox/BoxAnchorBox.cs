@@ -5,12 +5,14 @@ public class BoxAnchorBox : InteractableAnchorBox
     [Header("Box Settings")]
     [SerializeField] private int baseOpenCost = 50;
     [SerializeField] private float costMultiplier = 1.5f;
-    [SerializeField] private int timesOpened = 0;
     
     [Header("Card Spawn")]
     [SerializeField] private int cardsToSpawn = 3;
     
-    private int CurrentCost => Mathf.RoundToInt(baseOpenCost * Mathf.Pow(costMultiplier, timesOpened));
+    // 모든 박스가 공유하는 static 변수
+    private static int globalTimesOpened = 0;
+    
+    private int CurrentCost => Mathf.RoundToInt(baseOpenCost * Mathf.Pow(costMultiplier, globalTimesOpened));
     
     protected override void OnInteract()
     {
@@ -19,7 +21,7 @@ public class BoxAnchorBox : InteractableAnchorBox
         
         int cost = CurrentCost;
         PlayerStats.Instance.ConsumeEnergy(cost);
-        timesOpened++;
+        globalTimesOpened++;
         
         UpgradeCardManager.Instance.SpawnCards(cardsToSpawn);
         
@@ -40,5 +42,11 @@ public class BoxAnchorBox : InteractableAnchorBox
     }
     
     public int GetCurrentCost() => CurrentCost;
-    public int GetTimesOpened() => timesOpened;
+    public static int GetGlobalTimesOpened() => globalTimesOpened;
+    
+    // 게임 리셋 시 호출
+    public static void ResetGlobalCount()
+    {
+        globalTimesOpened = 0;
+    }
 }

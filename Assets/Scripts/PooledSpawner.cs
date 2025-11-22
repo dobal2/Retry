@@ -48,7 +48,7 @@ public class PooledSpawner : MonoBehaviour
     private float difficultyTimer = 0f;
     private float totalGameTime = 0f;
     
-    private const int CLEAR_DIFFICULTY_LEVEL = 17;
+    private const int CLEAR_DIFFICULTY_LEVEL = 25;
     
     void Start()
     {

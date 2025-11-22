@@ -43,7 +43,7 @@ public class SoundManager : MonoBehaviour
     private AudioSource clockSoundPlayer;
     
     public enum Bgm{MenuBgm,MainBGM,ClearBGM}
-    public enum Sfx{TimeStop,ClockSound,EnergyCollect,ProjectileHit,OpenChest}
+    public enum Sfx{TimeStop,ClockSound,EnergyCollect,TakeDamage,OpenChest,ProjectileHit,LevelUp}
 
     void Init()
     {

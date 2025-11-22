@@ -471,10 +471,11 @@ MonoBehaviour:
   upgradeDescription: 
   nameText: {fileID: 3442247708885464572}
   descriptionText: {fileID: 3586270335523377282}
-  minHealthBonus: 10
-  maxHealthBonus: 30
-  minStatBonus: 0.05
-  maxStatBonus: 0.2
+  selectButton: {fileID: 0}
+  minHealthBonus: 20
+  maxHealthBonus: 40
+  minStatBonus: 0.2
+  maxStatBonus: 0.3
 --- !u!114 &3368414600381594304
 MonoBehaviour:
   m_ObjectHideFlags: 0

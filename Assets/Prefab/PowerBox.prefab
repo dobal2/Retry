@@ -237,9 +237,8 @@ MonoBehaviour:
   infoTextUpdateInterval: 0.1
   interactionKey: 102
   requireVisible: 1
-  baseOpenCost: 6
-  costMultiplier: 1.5
-  timesOpened: 0
+  baseOpenCost: 5
+  costMultiplier: 1.15
   cardsToSpawn: 3
 --- !u!64 &6426882934794456745
 MeshCollider:

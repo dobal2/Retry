@@ -134,7 +134,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
             lastUpdateTime = Time.time;
         }
         
-        // ★ 동적 풀 생성 (초기 생성 완료 후)
         if (isInitialGrassComplete && GenerateGrass && grassGenerator != null && 
             Time.time - lastGrassCheckTime > grassCheckInterval)
         {
@@ -143,21 +142,18 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         }
     }
     
-    // ★ GameManager에서 플레이어 설정
     public void SetPlayer(Transform player)
     {
         viewer = player;
         Debug.Log($"[TerrainGenerator] Player set: {player.name}");
     }
     
-    // ★ 플레이어 근처 청크에 풀 동적 생성
     private async void CheckAndGenerateNearbyGrass()
 {
     if (viewer == null) return;
     
     List<GrassChunkInfo> chunksToGenerate = new List<GrassChunkInfo>();
     
-    // ★ 1단계: 생성 가능한 청크 수집
     foreach (var kvp in chunkDataCache)
     {
         Vector2Int coord = kvp.Key;
@@ -184,7 +180,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
     
     if (chunksToGenerate.Count == 0) return;
     
-    // ★ 2단계: 가까운 것부터 정렬
     if (sortByDistance)
     {
         chunksToGenerate.Sort((a, b) =>
@@ -195,7 +190,6 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         });
     }
     
-    // ★ 3단계: 제한된 개수만 생성
     int processCount = Mathf.Min(maxDynamicChunksPerUpdate, chunksToGenerate.Count);
     
     Debug.Log($"<color=cyan>[Dynamic Grass] Processing {processCount}/{chunksToGenerate.Count} chunks near player...</color>");
@@ -208,14 +202,11 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         grassGenerator.GenerateGrassForChunkOptimized(info);
         processedGrassChunks.Add(info.coord);
         
-        // ★ 4단계: 프레임 분산 (1개 생성할 때마다 yield)
         await Task.Yield();
     }
     
-    // ★ 5단계: 적용 (한 번에)
     await grassGenerator.ApplyAdditionalGrass();
     
-    // ★ 6단계: 남은 청크가 있으면 알림
     int remainingChunks = chunksToGenerate.Count - processCount;
     if (remainingChunks > 0)
     {
@@ -935,11 +926,9 @@ public class OptimizedTerrainGenerator : MonoBehaviour
         Gizmos.color = new Color(1f, 0f, 0f, 0.3f);
         Gizmos.DrawWireSphere(Vector3.zero, centerExclusionRadius);
         
-        // ★ 초기 풀 생성 반경
         Gizmos.color = new Color(0f, 1f, 0f, 0.3f);
         Gizmos.DrawWireSphere(Vector3.zero, initialGrassRadius);
         
-        // ★ 동적 풀 생성 반경
         if (viewer != null)
         {
             Gizmos.color = new Color(0f, 1f, 1f, 0.2f);

@@ -75,10 +75,10 @@ public class ForceFieldAnimationController : MonoBehaviour
     
     private void OnDestroy()
     {
-        // 인스턴스 Material 정리
-        if (forceFieldMaterial != null && Application.isPlaying)
-        {
-            Destroy(forceFieldMaterial);
-        }
+        // // 인스턴스 Material 정리
+        // if (forceFieldMaterial != null && Application.isPlaying)
+        // {
+        //     Destroy(forceFieldMaterial);
+        // }
     }
 }

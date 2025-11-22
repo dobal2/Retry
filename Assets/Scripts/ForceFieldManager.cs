@@ -459,6 +459,8 @@ public class ForceFieldManager : MonoBehaviour
             Debug.Log("Force Field is already at max level!");
             return;
         }
+        
+        SoundManager.Instance.PlaySfx(SoundManager.Sfx.LevelUp);
     
         SetForceFieldLevel(currentLevel + 1, true);
     

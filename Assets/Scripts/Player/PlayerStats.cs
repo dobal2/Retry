@@ -227,7 +227,7 @@ public class PlayerStats : MonoBehaviour
 
     public void TakeDamage(float damage)
     {
-        SoundManager.Instance.PlaySfx(SoundManager.Sfx.ProjectileHit);
+        SoundManager.Instance.PlaySfx(SoundManager.Sfx.TakeDamage);
         currentHealth -= damage;
         if (currentHealth < 0) currentHealth = 0;
         

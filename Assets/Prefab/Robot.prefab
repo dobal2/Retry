@@ -1717,7 +1717,7 @@ MonoBehaviour:
   moveSpeed: 3.5
   rotationSpeed: 3
   stoppingDistance: 6
-  damage: 2.5
+  damage: 2
   detectionRange: 999
   obstacleDetectionDistance: 2
   avoidanceAngle: 45
@@ -1730,7 +1730,7 @@ MonoBehaviour:
   waterRayDistance: 8
   canSwim: 1
   entityType: 1
-  maxHealth: 2
+  maxHealth: 1.5
   currentHealth: 0
   fadeOutDuration: 0.7
   destroyDelay: 0.5

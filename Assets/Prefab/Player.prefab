@@ -1182,7 +1182,7 @@ MonoBehaviour:
   moveSpeedMultiplier: 1
   jumpForceMultiplier: 1
   maxJumpCount: 1
-  currentEnergy: 2147482258
+  currentEnergy: 0
   takeDamageShake: {fileID: 11400000, guid: aeadd0db02e7c52458509356173ad3e6, type: 2}
   shaker: {fileID: 6369244619739246064}
   damageEffectDuration: 0.5
@@ -1980,7 +1980,7 @@ AudioLowPassFilter:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2590553847024774794}
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 3
   m_LowpassResonanceQ: 1.3
   lowpassLevelCustomCurve:

@@ -90,18 +90,19 @@ public class TargetAnchorBox : MonoBehaviour
     private Color originalBoxColor;
     private Coroutine colorTransitionCoroutine;
     
-    // ★ 캐싱
     private Vector3[] boundsCorners = new Vector3[8];
     private Vector2 cachedScreenMin;
     private Vector2 cachedScreenMax;
     private float cachedDistance;
     private Vector3 cachedCameraPosition;
-    private StringBuilder stringBuilder = new StringBuilder(64); // ★ 문자열 재사용
+    private StringBuilder stringBuilder = new StringBuilder(64);
     
-    // ★ 스크린 Bounds 캐싱
     private Bounds cachedScreenBounds;
     private float lastScreenBoundsUpdateTime;
-    private float screenBoundsUpdateInterval = 0.05f; // ★ 20fps
+    private float screenBoundsUpdateInterval = 0.05f; 
+    
+    private RectTransform canvasRect;
+    private Vector2 canvasSize;
     
     private void Start()
     {
@@ -187,6 +188,9 @@ public class TargetAnchorBox : MonoBehaviour
         parentCanvas = uiParent.GetComponentInParent<Canvas>();
         
         if (parentCanvas == null) return;
+        
+        canvasRect = parentCanvas.GetComponent<RectTransform>();
+        canvasSize = canvasRect.sizeDelta;
         
         GameObject boxObj = new GameObject($"AnchorBox_{gameObject.name}");
         boxObj.transform.SetParent(uiParent, false);
@@ -424,16 +428,19 @@ public class TargetAnchorBox : MonoBehaviour
         float maxX = float.MinValue;
         float maxY = float.MinValue;
 
-        // ★ 8개 코너를 한 번에 처리
+        // CanvasScaler가 해상도를 바꿀 수 있으므로 매번 체크
+        if (canvasRect != null)
+            canvasSize = canvasRect.sizeDelta;
+    
         for (int i = 0; i < 8; i++)
         {
             Vector3 screenPoint = mainCamera.WorldToScreenPoint(boundsCorners[i]);
-            
+        
             if (screenPoint.z < 0) continue;
-            
-            float canvasX = screenPoint.x - Screen.width * 0.5f;
-            float canvasY = screenPoint.y - Screen.height * 0.5f;
-            
+        
+            float canvasX = (screenPoint.x / Screen.width - 0.5f) * canvasSize.x;
+            float canvasY = (screenPoint.y / Screen.height - 0.5f) * canvasSize.y;
+        
             if (canvasX < minX) minX = canvasX;
             if (canvasY < minY) minY = canvasY;
             if (canvasX > maxX) maxX = canvasX;
@@ -590,7 +597,7 @@ public class TargetAnchorBox : MonoBehaviour
                 }
                 else
                 {
-                    stringBuilder.Append("\n<color=#FF0000>Require: ");
+                    stringBuilder.Append("\n<color=#FF0000>Energy: ");
                     stringBuilder.Append(playerEnergy);
                     stringBuilder.Append("/");
                     stringBuilder.Append(required);

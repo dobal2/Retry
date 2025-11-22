@@ -299,6 +299,7 @@ public class HS_ProjectileMover : MonoBehaviour
             return;
         }
         
+        
         ApplyExplosionDamage(collision.contacts[0].point);
         
         rb.constraints = RigidbodyConstraints.FreezeAll;
@@ -403,6 +404,7 @@ public class HS_ProjectileMover : MonoBehaviour
             
             if (damageApplied)
             {
+                SoundManager.Instance.PlaySfx(SoundManager.Sfx.ProjectileHit);
                 damagedObjects.Add(rootObject);
                 Debug.Log($"Explosion damaged: {hitCol.gameObject.name}");
             }
