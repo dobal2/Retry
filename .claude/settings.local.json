@@ -6,7 +6,8 @@
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:api.github.com)",
       "Bash(curl -sL \"https://raw.githubusercontent.com/dobal2/WaSans/main/README.md\")",
-      "Bash(curl -sL \"https://raw.githubusercontent.com/dobal2/WaSans/master/README.md\")"
+      "Bash(curl -sL \"https://raw.githubusercontent.com/dobal2/WaSans/master/README.md\")",
+      "WebSearch"
     ]
   }
 }
