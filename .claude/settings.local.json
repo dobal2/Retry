@@ -7,7 +7,9 @@
       "WebFetch(domain:api.github.com)",
       "Bash(curl -sL \"https://raw.githubusercontent.com/dobal2/WaSans/main/README.md\")",
       "Bash(curl -sL \"https://raw.githubusercontent.com/dobal2/WaSans/master/README.md\")",
-      "WebSearch"
+      "WebSearch",
+      "Bash(find /c/Users/seojaemin/Retry/Assets -type f -name *license* -o -name *LICENSE* -o -name *credits* -o -name *CREDITS* -o -name *attribution* -o -name *README* -o -name readme*)",
+      "Bash(find /c/Users/seojaemin/Retry/Assets/RASCAL -type f -name *.txt -o -name *readme*)"
     ]
   }
 }
