@@ -33,7 +33,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _ColorBlend: 0
+    - _ColorBlend: 1
     - _DensityMultiplier: 0
     - _DensityThreshold: 0.881
     - _LightScattering: 0
